@@ -54,7 +54,6 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                     pdf.cell(130, 6, desc, 1, ln=True)
                 pdf.ln(3)
     
-    # AJUSTE PARA EVITAR O TYPEERROR
     return pdf.output() if isinstance(pdf.output(), (bytes, bytearray)) else bytes(pdf.output(), 'latin-1')
 
 # --- 2. BANCO DE DADOS ---
@@ -100,9 +99,11 @@ else:
     if st.session_state["perfil"] == "motorista":
         aba_solic, aba_hist = st.tabs(["✍️ Abrir Solicitação", "📜 Status"])
         with aba_solic:
+            # RECADOS MOTORISTA RESTAURADO
+            st.info("💡 *Preencha os campos abaixo com o prefixo do veículo e descreva os sintomas do(a) ocorrido/falha.*")
             with st.form("f_ch", clear_on_submit=True):
                 p, d = st.text_input("Prefixo"), st.text_area("Descrição")
-                if st.form_submit_button("Enviar ao Ted"):
+                if st.form_submit_button("Enviar para a oficina"):
                     if p and d:
                         with engine.connect() as conn:
                             conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
@@ -133,6 +134,8 @@ else:
                         st.success("Tudo em dia!")
                         st.rerun()
             st.divider()
+            # RECADOS CADASTRO RESTAURADO
+            st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. Faça demais ajustes ou exclua serviços em caso de agendamentos incorretos. O salvamento é automático.*")
             df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
             if not df_lista.empty:
                 df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
@@ -156,7 +159,6 @@ else:
             st.subheader("📥 Aprovação de Chamados")
             df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado'", engine)
             if not df_p.empty:
-                # Inicialização das colunas de edição se não existirem
                 if 'df_aprov' not in st.session_state:
                     st.session_state.df_aprov = df_p.copy()
                     st.session_state.df_aprov['Responsável'] = "Pendente"
@@ -178,7 +180,6 @@ else:
                 )
                 
                 if st.button("Processar Agendamentos"):
-                    # Filtra apenas quem foi marcado com OK no editor
                     selecionados = ed_c[ed_c['OK'] == True]
                     if not selecionados.empty:
                         with engine.connect() as conn:
@@ -190,17 +191,18 @@ else:
                                 conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                             conn.commit()
                         st.success("Tudo em dia! Serviços movidos para a agenda.")
-                        del st.session_state.df_aprov # Limpa cache para atualizar
+                        del st.session_state.df_aprov 
                         st.rerun()
             else: st.info("Nenhum chamado pendente.")
 
         with aba_agen:
             st.subheader("📅 Agenda Principal")
+            # RECADOS AGENDA RESTAURADO
+            st.info("💡 *Destaque em verde: Horários negociados com a Logística. O campo 'Início' indica quando o caminhão encosta e 'Fim' a meta de liberação.*")
             df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
             if not df_a.empty:
                 df_a['data'] = pd.to_datetime(df_a['data']).dt.date
                 
-                # --- EXPORTAÇÃO ---
                 c_per, c_pdf = st.columns([0.8, 0.2])
                 with c_per: p_sel = st.date_input("Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)])
                 if len(p_sel) == 2:
@@ -223,7 +225,7 @@ else:
                         if not df_f.empty:
                             k = f"ed_ted_{d}_{area}"
                             st.write(f"**📍 {area}**")
-                            # ALINHAMENTO DAS COLUNAS
+                            # ALINHAMENTO DAS COLUNAS FIXADO (df_f order matches column_config)
                             ed_age = st.data_editor(
                                 df_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
                                 column_config={
@@ -231,8 +233,10 @@ else:
                                     "realizado": st.column_config.CheckboxColumn("Status OK", width="small"),
                                     "executor": st.column_config.TextColumn("Responsável", width="medium"),
                                     "prefixo": st.column_config.TextColumn("Prefixo", width="small"),
-                                    "inicio_disp": st.column_config.TimeColumn("Início", format="HH:mm"),
-                                    "fim_disp": st.column_config.TimeColumn("Fim", format="HH:mm")
+                                    "inicio_disp": st.column_config.TimeColumn("Início", format="HH:mm", width="small"),
+                                    "fim_disp": st.column_config.TimeColumn("Fim", format="HH:mm", width="small"),
+                                    "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS, width="small"),
+                                    "descricao": st.column_config.TextColumn("Descrição", width="large")
                                 }, hide_index=True, use_container_width=True, key=k)
                             
                             if st.session_state[k]["edited_rows"]:
