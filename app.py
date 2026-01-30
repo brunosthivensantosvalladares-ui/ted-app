@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
-import urllib.parse
 import os
 from sqlalchemy import create_engine, text
 from datetime import datetime, time, timedelta
@@ -17,13 +15,15 @@ ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeament
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- FUNÇÃO PARA GERAR PDF POR PERÍODO (RESTAURADA NA ÍNTEGRA) ---
+# --- FUNÇÃO PARA GERAR PDF POR PERÍODO (RESTAURADA COMPLETA) ---
 def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(190, 10, "Relatorio de Manutencao", ln=True, align="C")
+    pdf.set_text_color(0, 102, 204)
+    pdf.cell(190, 10, f"Relatorio de Manutencao - {NOME_SISTEMA}", ln=True, align="C")
     pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(0, 0, 0)
     pdf.cell(190, 10, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
     pdf.ln(5)
 
@@ -43,15 +43,15 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 
                 pdf.set_font("Arial", "B", 9)
                 pdf.cell(25, 6, "Prefixo", 1)
-                pdf.cell(30, 6, "Responsavel", 1)
-                pdf.cell(135, 6, "Descricao", 1, ln=True)
+                pdf.cell(35, 6, "Responsavel", 1)
+                pdf.cell(130, 6, "Descricao", 1, ln=True)
                 
                 pdf.set_font("Arial", "", 8)
                 for _, row in df_area.iterrows():
                     desc = str(row['descricao'])[:80]
                     pdf.cell(25, 6, str(row['prefixo']), 1)
-                    pdf.cell(30, 6, str(row['executor']), 1)
-                    pdf.cell(135, 6, desc, 1, ln=True)
+                    pdf.cell(35, 6, str(row['executor']), 1)
+                    pdf.cell(130, 6, desc, 1, ln=True)
                 pdf.ln(3)
         pdf.ln(5)
     return bytes(pdf.output())
@@ -59,9 +59,7 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
 # --- 2. BANCO DE DADOS ---
 def get_engine():
     db_url = os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
-    if db_url.startswith("postgres://"):
-        db_url = db_url.replace("postgres://", "postgresql://", 1)
-    return create_engine(db_url, pool_pre_ping=True)
+    return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
 
 def inicializar_banco():
     engine = get_engine()
@@ -72,7 +70,7 @@ def inicializar_banco():
             conn.commit()
     except: pass
 
-# --- 3. LOGIN (ESTILIZADO CONFORME PEDIDO) ---
+# --- 3. LOGIN ---
 if "logado" not in st.session_state: st.session_state["logado"] = False
 
 if not st.session_state["logado"]:
@@ -88,7 +86,7 @@ if not st.session_state["logado"]:
                 if user in users and users[user] == pw:
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
-                else: st.error("Erro no login")
+                else: st.error("Acesso negado")
 else:
     engine = get_engine()
     inicializar_banco()
@@ -99,22 +97,21 @@ else:
         if st.button("Sair"): st.session_state["logado"] = False; st.rerun()
 
     if st.session_state["perfil"] == "motorista":
-        aba_solic, aba_hist = st.tabs(["✍️ Abrir Solicitação", "📜 Status"])
+        aba_solic, aba_hist = st.tabs(["✍️ Solicitar Manutenção", "📜 Status"])
         with aba_solic:
-            st.info("💡 *Preencha os campos abaixo com o prefixo do veículo e descreva os sintomas do(a) ocorrido/falha.*")
             with st.form("f_ch", clear_on_submit=True):
                 p, d = st.text_input("Prefixo"), st.text_area("Descrição")
-                if st.form_submit_button("Enviar para a oficina"):
+                if st.form_submit_button("Enviar ao Ted"):
                     if p and d:
                         with engine.connect() as conn:
                             conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                             conn.commit()
-                        st.success("Tudo em dia! Solicitação enviada.")
+                        st.success("Tudo em dia!")
         with aba_hist:
             st.dataframe(pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine), use_container_width=True)
 
     else:
-        aba_cad, aba_cham, aba_agen, aba_demo = st.tabs(["📋 Cadastro", "📥 Chamados Pendentes", "📅 Agenda Principal", "📊 Indicadores"])
+        aba_cad, aba_cham, aba_agen, aba_demo = st.tabs(["📋 Cadastro", "📥 Chamados", "📅 Agenda Principal", "📊 Indicadores"])
 
         with aba_cad:
             st.subheader("📝 Agendamento Direto")
@@ -136,8 +133,7 @@ else:
                         st.success("Tudo em dia!")
                         st.rerun()
             st.divider()
-            st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. Faça demais ajustes ou exclua serviços em caso de agendamentos incorretos. O salvamento é automático.*")
-            st.subheader("📋 Lista de Serviços")
+            st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. O salvamento é automático.*")
             df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
             if not df_lista.empty:
                 df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
@@ -159,11 +155,10 @@ else:
 
         with aba_cham:
             st.subheader("📥 Aprovação de Chamados")
-            st.info("💡 *Os pedidos dos motoristas aparecem aqui. Defina a data e área correta para incluí-los na Agenda.*")
             df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado' OR status IS NULL", engine)
             if not df_p.empty:
                 df_p['Data'], df_p['Área'], df_p['OK'] = datetime.now().date(), "Mecânica", False
-                ed_c = st.data_editor(df_p, hide_index=True, use_container_width=True, column_config={"id": None})
+                ed_c = st.data_editor(df_p, hide_index=True, use_container_width=True)
                 if st.button("Processar Agendamentos"):
                     with engine.connect() as conn:
                         for _, r in ed_c[ed_c['OK']==True].iterrows():
@@ -172,37 +167,33 @@ else:
                         conn.commit()
                     st.success("Tudo em dia!")
                     st.rerun()
-            else: st.success("Nenhuma solicitação pendente.")
+            else: st.info("Nenhum chamado pendente.")
 
         with aba_agen:
             st.subheader("📅 Agenda Principal")
             df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
             if not df_a.empty:
                 df_a['data'] = pd.to_datetime(df_a['data']).dt.date
-                # --- ÁREA DE EXPORTAÇÃO (RESTAURADA) ---
-                st.markdown("### 📥 Extração de Relatórios")
+                
+                # --- EXPORTAÇÃO ---
                 c_per, c_pdf, c_xls = st.columns([0.4, 0.2, 0.2])
-                with c_per: periodo = st.date_input("Selecione o período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)])
-                if len(periodo) == 2:
-                    d_ini, d_fim = periodo
-                    df_filtro = df_a[(df_a['data'] >= d_ini) & (df_a['data'] <= d_fim)]
-                    with c_pdf:
-                        st.write(""); st.write("")
-                        if st.button("📥 Gerar PDF", use_container_width=True):
-                            st.download_button("⬇️ Baixar PDF", gerar_pdf_periodo(df_filtro, d_ini, d_fim), f"Relatorio_{d_ini}.pdf", "application/pdf")
+                with c_per: p_sel = st.date_input("Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)])
+                if len(p_sel) == 2:
+                    df_f_per = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
+                    with c_pdf: 
+                        if st.button("📥 PDF", use_container_width=True):
+                            st.download_button("Baixar PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf", "application/pdf")
                     with c_xls:
-                        st.write(""); st.write("")
                         buf = BytesIO()
-                        with pd.ExcelWriter(buf, engine='xlsxwriter') as w: df_filtro.to_excel(w, index=False)
-                        st.download_button("⬇️ Baixar Excel", buf.getvalue(), f"Relatorio_{d_ini}.xlsx", "application/vnd.ms-excel")
+                        with pd.ExcelWriter(buf) as w: df_f_per.to_excel(w, index=False)
+                        st.download_button("Baixar Excel", buf.getvalue(), "Relatorio_Ted.xlsx", use_container_width=True)
 
                 st.divider()
-                # Conversão String -> Time (Necessário para o Editor)
+                # Conversão de Horários
                 for col in ['inicio_disp', 'fim_disp']:
                     df_a[col] = pd.to_datetime(df_a[col], format='%H:%M', errors='coerce').dt.time
                     df_a[col] = df_a[col].fillna(time(0, 0))
 
-                # Estilo Verde Claro Logística
                 st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
                 for d in sorted(df_a['data'].unique(), reverse=True):
@@ -212,14 +203,20 @@ else:
                         if not df_f.empty:
                             k = f"ed_ted_{d}_{area}"
                             st.write(f"**📍 {area}**")
-                            ed_age = st.data_editor(df_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'descricao', 'turno', 'id', 'id_chamado']],
+                            # ALINHAMENTO CORRIGIDO: Ordem das colunas casada com column_config
+                            ed_age = st.data_editor(
+                                df_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
                                 column_config={
-                                    "id": None, "id_chamado": None,
-                                    "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                    "inicio_disp": st.column_config.TimeColumn("Início", format="HH:mm"),
-                                    "fim_disp": st.column_config.TimeColumn("Fim", format="HH:mm"),
-                                    "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS)
-                                }, hide_index=True, use_container_width=True, key=k)
+                                    "id": None, 
+                                    "realizado": st.column_config.CheckboxColumn("Status OK", width="small"),
+                                    "executor": st.column_config.TextColumn("Responsável", width="medium"),
+                                    "prefixo": st.column_config.TextColumn("Prefixo", width="small"),
+                                    "inicio_disp": st.column_config.TimeColumn("Início", format="HH:mm", width="small"),
+                                    "fim_disp": st.column_config.TimeColumn("Fim", format="HH:mm", width="small"),
+                                    "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS, width="small"),
+                                    "descricao": st.column_config.TextColumn("Descrição", width="large")
+                                }, 
+                                hide_index=True, use_container_width=True, key=k)
                             
                             if st.session_state[k]["edited_rows"]:
                                 with engine.connect() as conn:
