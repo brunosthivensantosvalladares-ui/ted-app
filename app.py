@@ -193,37 +193,42 @@ else:
         with aba_agen:
             st.subheader("📅 Agenda Principal")
             
-            # --- MUDANÇA: BOTÃO SALVAR NO TOPO ---
+            # --- 1. ÁREA DE FILTROS E PDF (FORA DO FORM PARA EVITAR ERRO) ---
             df_a_carrega = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
             
+            c_per, c_pdf = st.columns([0.8, 0.2])
+            with c_per: p_sel = st.date_input("Filtrar Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)], key="dt_filter")
+            
+            if not df_a_carrega.empty:
+                df_a_carrega['data'] = pd.to_datetime(df_a_carrega['data']).dt.date
+                df_f_per = df_a_carrega[(df_a_carrega['data'] >= p_sel[0]) & (df_a_carrega['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a_carrega
+                
+                with c_pdf: 
+                    st.write("")
+                    st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+
+            st.divider()
+
+            # --- 2. ÁREA DE EDIÇÃO (DENTRO DO FORM PARA ESTABILIDADE) ---
             with st.form("form_agenda"):
                 col_btn, col_info = st.columns([0.2, 0.8])
                 with col_btn:
                     btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
                 with col_info:
-                    st.info("💡 *Preencha os horários abaixo e clique em Salvar no topo para gravar.*")
+                    st.info("💡 *Altere os dados e clique em Salvar no topo para gravar.*")
 
-                if not df_a_carrega.empty:
-                    df_a_carrega['data'] = pd.to_datetime(df_a_carrega['data']).dt.date
-                    
-                    # Filtros de PDF e Período (Mantidos dentro do form para estabilidade)
-                    c_per, c_pdf = st.columns([0.8, 0.2])
-                    with c_per: p_sel = st.date_input("Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)], key="dt_filter")
-                    if len(p_sel) == 2:
-                        df_f_per = df_a_carrega[(df_a_carrega['data'] >= p_sel[0]) & (df_a_carrega['data'] <= p_sel[1])]
-                        with c_pdf: st.write(""); st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
-
-                    st.divider()
+                if not df_f_per.empty:
+                    # Ajuste visual dos horários
                     for col in ['inicio_disp', 'fim_disp']:
-                        df_a_carrega[col] = pd.to_datetime(df_a_carrega[col], format='%H:%M', errors='coerce').dt.time
-                        df_a_carrega[col] = df_a_carrega[col].fillna(time(0, 0))
+                        df_f_per[col] = pd.to_datetime(df_f_per[col], format='%H:%M', errors='coerce').dt.time
+                        df_f_per[col] = df_f_per[col].fillna(time(0, 0))
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
-                    for d in sorted(df_a_carrega['data'].unique(), reverse=True):
+                    for d in sorted(df_f_per['data'].unique(), reverse=True):
                         st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                         for area in ORDEM_AREAS:
-                            df_f = df_a_carrega[(df_a_carrega['data'] == d) & (df_a_carrega['area'] == area)]
+                            df_f = df_f_per[(df_f_per['data'] == d) & (df_f_per['area'] == area)]
                             if not df_f.empty:
                                 st.write(f"**📍 {area}**")
                                 st.data_editor(
@@ -246,7 +251,7 @@ else:
                                 partes = key.split("_")
                                 dt_k = datetime.strptime(partes[2], '%Y-%m-%d').date()
                                 ar_k = partes[3]
-                                df_ref = df_a_carrega[(df_a_carrega['data'] == dt_k) & (df_a_carrega['area'] == ar_k)]
+                                df_ref = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
                                 
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     rid = int(df_ref.iloc[idx]['id'])
