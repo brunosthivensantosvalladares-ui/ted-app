@@ -9,8 +9,8 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-# LINK ESTÁVEL DA LOGO (Hospedagem Direta)
-LOGO_PATH = "https://i.postimg.cc/0jXmY8m4/logo-ted.png" 
+# LINK DIRETO E ESTÁVEL DA LOGO
+LOGO_URL = "https://raw.githubusercontent.com/brunofrois/ted-app/main/logo.png" 
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 
@@ -21,7 +21,6 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    /* Cores da Logo: Azul (#0066cc) e Verde (#28a745) */
     .stButton>button {{ background-color: #0066cc; color: white; border-radius: 8px; border: none; font-weight: bold; }}
     .stButton>button:hover {{ background-color: #004d99; border: none; }}
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
@@ -43,9 +42,6 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf.set_font("Arial", "B", 16)
     pdf.set_text_color(0, 102, 204)
     pdf.cell(190, 10, f"Relatorio de Manutencao - {NOME_SISTEMA}", ln=True, align="C")
-    pdf.set_font("Arial", "", 12)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(190, 10, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
     pdf.ln(5)
     df_periodo = df_periodo.sort_values(by=['data', 'area'])
     for d_process in df_periodo['data'].unique():
@@ -59,6 +55,7 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 for _, row in df_area.iterrows():
                     pdf.set_font("Arial", "", 8)
                     pdf.cell(190, 6, f"{row['prefixo']} | {row['executor']} | {str(row['descricao'])[:80]}", ln=True)
+                pdf.ln(3)
     return pdf.output() if isinstance(pdf.output(), (bytes, bytearray)) else bytes(pdf.output(), 'latin-1')
 
 def inicializar_banco():
@@ -78,7 +75,8 @@ if "logado" not in st.session_state: st.session_state["logado"] = False
 if not st.session_state["logado"]:
     _, col_login, _ = st.columns([1.2, 1, 1.2])
     with col_login:
-        st.image(LOGO_PATH, use_container_width=True)
+        # LOGO NO LOGIN COM FALLBACK
+        st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-bottom: 20px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
@@ -93,8 +91,9 @@ else:
     engine = get_engine()
     inicializar_banco()
     
+    # --- BARRA LATERAL ---
     with st.sidebar:
-        st.image(LOGO_PATH, use_container_width=True)
+        st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.85rem; color: #666; margin-top:-10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         st.write(f"👤 Perfil: **{st.session_state['perfil'].capitalize()}**")
@@ -183,7 +182,7 @@ else:
                                     conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                                 conn.commit()
                             del st.session_state.df_aprov; st.rerun()
-                else: st.info("Nenhum chamado pendente no momento.")
+                else: st.info("Nenhum chamado pendente.")
             secao_aprovacao()
 
         with aba_agen:
@@ -198,14 +197,13 @@ else:
                 df_a_carrega['origem'] = df_a_carrega['origem'].fillna('Direto')
                 df_a_carrega['data'] = pd.to_datetime(df_a_carrega['data']).dt.date
                 df_f_per = df_a_carrega[(df_a_carrega['data'] >= p_sel[0]) & (df_a_carrega['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a_carrega
-                with c_pdf: 
-                    st.write(""); st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+                with c_pdf: st.write(""); st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
 
                 st.divider()
                 with st.form("form_agenda"):
                     col_btn, col_info = st.columns([0.2, 0.8])
-                    with col_btn: btn_salvar = st.form_submit_button("Salvar Alterações", use_container_width=True)
-                    with col_info: st.info("💡 *Preencha os horários e marque OK para concluir o serviço.*")
+                    with col_btn: btn_salvar = st.form_submit_button("Salvar Tudo", use_container_width=True)
+                    with col_info: st.info("💡 *Marque OK para concluir o serviço para o motorista.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
