@@ -55,7 +55,7 @@ def inicializar_banco():
     engine = get_engine()
     try:
         with engine.connect() as conn:
-            # ADICIONADA COLUNA ORIGEM
+            # ADICIONADA COLUNA ORIGEM CASO NÃO EXISTA
             conn.execute(text("CREATE TABLE IF NOT EXISTS tarefas (id SERIAL PRIMARY KEY, data TEXT, executor TEXT, prefixo TEXT, inicio_disp TEXT, fim_disp TEXT, descricao TEXT, area TEXT, turno TEXT, realizado BOOLEAN DEFAULT FALSE, id_chamado INTEGER, origem TEXT)"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS chamados (id SERIAL PRIMARY KEY, motorista TEXT, prefixo TEXT, descricao TEXT, data_solicitacao TEXT, status TEXT DEFAULT 'Pendente')"))
             conn.commit()
@@ -118,20 +118,22 @@ else:
                     t_i = st.selectbox("Turno", LISTA_TURNOS)
                     if st.form_submit_button("Confirmar", use_container_width=True):
                         with engine.connect() as conn:
-                            # DEFININDO ORIGEM COMO 'Direto'
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                             conn.commit()
                         st.rerun()
             st.divider()
-            st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. Faça demais ajustes ou exclua serviços em caso de agendamentos incorretos. O salvamento é automático.*")
+            st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. O salvamento é automático.*")
             
             @st.fragment
             def secao_lista_cadastro():
                 df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
                 if not df_lista.empty:
+                    # CORREÇÃO PARA O ERRO KEYERROR: ORIGEM
+                    if 'origem' not in df_lista.columns: df_lista['origem'] = 'Direto'
+                    df_lista['origem'] = df_lista['origem'].fillna('Direto')
+                    
                     df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
                     df_lista['Exc'] = False
-                    # ADICIONADA COLUNA ORIGEM NA VISUALIZAÇÃO
                     ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'origem', 'executor', 'prefixo', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
                     if st.button("🗑️ Excluir Selecionados"):
                         with engine.connect() as conn:
@@ -150,7 +152,7 @@ else:
 
         with aba_cham:
             st.subheader("📥 Aprovação de Chamados")
-            st.info("💡 *Marque 'OK' para os itens que deseja aprovar, defina o Responsável/Área e clique em 'Processar Agendamentos'.*")
+            st.info("💡 *Marque 'OK' para aprovar, defina o Responsável e clique em 'Processar Agendamentos'.*")
             
             @st.fragment
             def secao_aprovacao():
@@ -167,7 +169,6 @@ else:
                         if not selecionados.empty:
                             with engine.connect() as conn:
                                 for _, r in selecionados.iterrows():
-                                    # DEFININDO ORIGEM COMO 'Chamado'
                                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data']), "ex": r['Responsável'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Área'], "ic": r['id']})
                                     conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                                 conn.commit()
@@ -179,26 +180,25 @@ else:
             st.subheader("📅 Agenda Principal")
             df_a_carrega = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
             
-            hoje = datetime.now().date()
-            amanha = hoje + timedelta(days=1)
-            
+            hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
             c_per, c_pdf = st.columns([0.8, 0.2])
             with c_per: p_sel = st.date_input("Filtrar Período", [hoje, amanha], key="dt_filter")
             
             if not df_a_carrega.empty:
+                # CORREÇÃO PARA O ERRO KEYERROR: ORIGEM NA AGENDA
+                if 'origem' not in df_a_carrega.columns: df_a_carrega['origem'] = 'Direto'
+                df_a_carrega['origem'] = df_a_carrega['origem'].fillna('Direto')
+
                 df_a_carrega['data'] = pd.to_datetime(df_a_carrega['data']).dt.date
                 df_f_per = df_a_carrega[(df_a_carrega['data'] >= p_sel[0]) & (df_a_carrega['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a_carrega
                 with c_pdf: 
                     st.write(""); st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
 
                 st.divider()
-                
                 with st.form("form_agenda"):
                     col_btn, col_info = st.columns([0.2, 0.8])
-                    with col_btn:
-                        btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
-                    with col_info:
-                        st.info("💡 *Preencha os horários (Ex: 14:00) e clique em Salvar no topo para gravar permanentemente.*")
+                    with col_btn: btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
+                    with col_info: st.info("💡 *Preencha os horários (Ex: 14:00) e clique em Salvar no topo.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
@@ -208,16 +208,9 @@ else:
                             df_area_f = df_f_per[(df_f_per['data'] == d) & (df_f_per['area'] == area)]
                             if not df_area_f.empty:
                                 st.write(f"**📍 {area}**")
-                                # ADICIONADA COLUNA ORIGEM NA AGENDA PRINCIPAL PARA REFERÊNCIA
                                 st.data_editor(
                                     df_area_f[['realizado', 'origem', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
-                                    column_config={
-                                        "id": None, 
-                                        "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                        "origem": st.column_config.TextColumn("Origem", disabled=True, width="small"),
-                                        "inicio_disp": st.column_config.TextColumn("Início (HH:mm)", width="small"),
-                                        "fim_disp": st.column_config.TextColumn("Fim (HH:mm)", width="small")
-                                    }, 
+                                    column_config={"id": None, "origem": st.column_config.TextColumn("Origem", disabled=True), "realizado": st.column_config.CheckboxColumn("OK"), "inicio_disp": st.column_config.TextColumn("Início (HH:mm)"), "fim_disp": st.column_config.TextColumn("Fim (HH:mm)")}, 
                                     hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
 
                 if btn_salvar:
@@ -225,8 +218,7 @@ else:
                         for key in st.session_state.keys():
                             if key.startswith("ed_ted_") and st.session_state[key]["edited_rows"]:
                                 partes = key.split("_")
-                                dt_k = datetime.strptime(partes[2], '%Y-%m-%d').date()
-                                ar_k = partes[3]
+                                dt_k, ar_k = datetime.strptime(partes[2], '%Y-%m-%d').date(), partes[3]
                                 df_referencia = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     rid = int(df_referencia.iloc[idx]['id'])
