@@ -57,7 +57,6 @@ def inicializar_banco():
         with engine.connect() as conn:
             conn.execute(text("CREATE TABLE IF NOT EXISTS tarefas (id SERIAL PRIMARY KEY, data TEXT, executor TEXT, prefixo TEXT, inicio_disp TEXT, fim_disp TEXT, descricao TEXT, area TEXT, turno TEXT, realizado BOOLEAN DEFAULT FALSE, id_chamado INTEGER, origem TEXT)"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS chamados (id SERIAL PRIMARY KEY, motorista TEXT, prefixo TEXT, descricao TEXT, data_solicitacao TEXT, status TEXT DEFAULT 'Pendente')"))
-            # Garante que a coluna origem existe para não dar erro de banco antigo
             try: conn.execute(text("ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS origem TEXT"))
             except: pass
             conn.commit()
@@ -120,7 +119,6 @@ else:
                     t_i = st.selectbox("Turno", LISTA_TURNOS)
                     if st.form_submit_button("Confirmar", use_container_width=True):
                         with engine.connect() as conn:
-                            # Adicionado 'Direto' na origem
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                             conn.commit()
                         st.rerun()
@@ -156,7 +154,7 @@ else:
             
             @st.fragment
             def secao_aprovacao():
-                df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado'", engine)
+                df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado' AND status != 'Concluído'", engine)
                 if not df_p.empty:
                     if 'df_aprov' not in st.session_state:
                         st.session_state.df_aprov = df_p.copy()
@@ -169,7 +167,6 @@ else:
                         if not selecionados.empty:
                             with engine.connect() as conn:
                                 for _, r in selecionados.iterrows():
-                                    # Adicionado 'Chamado' na origem
                                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data']), "ex": r['Responsável'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Área'], "ic": r['id']})
                                     conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                                 conn.commit()
@@ -197,7 +194,7 @@ else:
                 with st.form("form_agenda"):
                     col_btn, col_info = st.columns([0.2, 0.8])
                     with col_btn: btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
-                    with col_info: st.info("💡 *Preencha os horários (Ex: 14:00) e clique em Salvar no topo.*")
+                    with col_info: st.info("💡 *Preencha os horários (Ex: 14:00) e marque OK para concluir o serviço.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
@@ -208,14 +205,8 @@ else:
                             if not df_area_f.empty:
                                 st.write(f"**📍 {area}**")
                                 st.data_editor(
-                                    df_area_f[['realizado', 'origem', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
-                                    column_config={
-                                        "id": None, 
-                                        "origem": st.column_config.TextColumn("Origem", disabled=True),
-                                        "realizado": st.column_config.CheckboxColumn("OK"), 
-                                        "inicio_disp": st.column_config.TextColumn("Início (HH:mm)"), 
-                                        "fim_disp": st.column_config.TextColumn("Fim (HH:mm)")
-                                    }, 
+                                    df_area_f[['realizado', 'origem', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']],
+                                    column_config={"id": None, "id_chamado": None, "origem": st.column_config.TextColumn("Origem", disabled=True), "realizado": st.column_config.CheckboxColumn("OK"), "inicio_disp": st.column_config.TextColumn("Início (HH:mm)"), "fim_disp": st.column_config.TextColumn("Fim (HH:mm)")}, 
                                     hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
 
                 if btn_salvar:
@@ -226,9 +217,18 @@ else:
                                 dt_k, ar_k = datetime.strptime(partes[2], '%Y-%m-%d').date(), partes[3]
                                 df_referencia = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
-                                    rid = int(df_referencia.iloc[idx]['id'])
+                                    row_data = df_referencia.iloc[idx]
+                                    rid = int(row_data['id'])
+                                    id_chamado_vinculado = row_data['id_chamado']
+                                    
                                     for col, val in changes.items():
+                                        # Atualiza a tarefa
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                                        
+                                        # --- NOVA LÓGICA DE SINCRONIZAÇÃO ---
+                                        # Se a coluna alterada for 'realizado' e o valor for True, e houver um chamado vinculado
+                                        if col == 'realizado' and val is True and id_chamado_vinculado:
+                                            conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_chamado_vinculado)})
                         conn.commit()
                     st.rerun()
 
