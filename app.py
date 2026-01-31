@@ -147,7 +147,6 @@ else:
 
         with aba_cham:
             st.subheader("📥 Aprovação de Chamados")
-            # --- RECADO RECUPERADO ---
             st.info("💡 *Marque 'OK' para os itens que deseja aprovar, defina o Responsável/Área e clique em 'Processar Agendamentos'.*")
             
             @st.fragment
@@ -176,7 +175,7 @@ else:
             st.subheader("📅 Agenda Principal")
             df_a_carrega = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
             
-            # --- FILTRO TRAVADO: DIA ATUAL E PRÓXIMO ---
+            # FILTRO TRAVADO EM HOJE E AMANHÃ
             hoje = datetime.now().date()
             amanha = hoje + timedelta(days=1)
             
@@ -196,12 +195,7 @@ else:
                     with col_btn:
                         btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
                     with col_info:
-                        st.info("💡 *Preencha os horários e clique em Salvar no topo para gravar permanentemente.*")
-
-                    # Ajuste de horários para objetos time
-                    for col in ['inicio_disp', 'fim_disp']:
-                        df_f_per[col] = pd.to_datetime(df_f_per[col], format='%H:%M', errors='coerce').dt.time
-                        df_f_per[col] = df_f_per[col].fillna(time(0, 0))
+                        st.info("💡 *Digite os horários (ex: 14:00) e clique em Salvar no topo para gravar permanentemente.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
@@ -211,12 +205,14 @@ else:
                             df_area_f = df_f_per[(df_f_per['data'] == d) & (df_f_per['area'] == area)]
                             if not df_area_f.empty:
                                 st.write(f"**📍 {area}**")
+                                # MUDANÇA: USANDO TEXTCOLUMN (TEXTO PURO) PARA GARANTIR SALVAMENTO
                                 st.data_editor(
                                     df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
                                     column_config={
-                                        "id": None, "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                        "inicio_disp": st.column_config.TimeColumn("Início", format="HH:mm", width="small"),
-                                        "fim_disp": st.column_config.TimeColumn("Fim", format="HH:mm", width="small")
+                                        "id": None, 
+                                        "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                        "inicio_disp": st.column_config.TextColumn("Início (HH:mm)", width="small"),
+                                        "fim_disp": st.column_config.TextColumn("Fim (HH:mm)", width="small")
                                     }, 
                                     hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
 
@@ -224,18 +220,14 @@ else:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
                             if key.startswith("ed_ted_") and st.session_state[key]["edited_rows"]:
-                                # Localização do ID real da linha
                                 partes = key.split("_")
-                                dt_k = datetime.strptime(partes[2], '%Y-%m-%d').date()
-                                ar_k = partes[3]
-                                df_referencia = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
-                                
+                                dt_k, ar_k = datetime.strptime(partes[2], '%Y-%m-%d').date(), partes[3]
+                                df_ref = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
-                                    rid = int(df_referencia.iloc[idx]['id'])
+                                    rid = int(df_ref.iloc[idx]['id'])
                                     for col, val in changes.items():
-                                        # RESOLVE O SALVAMENTO: Converte objeto TIME em STRING HH:mm para o banco Neon
-                                        v_final = val.strftime('%H:%M') if isinstance(val, time) else str(val)
-                                        conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": v_final, "i": rid})
+                                        # ENVIO COMO TEXTO PURO PARA O BANCO (SEM CONVERSÃO COMPLEXA)
+                                        conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                         conn.commit()
                     st.rerun()
 
@@ -244,4 +236,4 @@ else:
             if not df_ind.empty:
                 c1, c2 = st.columns(2)
                 with c1: st.bar_chart(df_ind['area'].value_counts())
-                with c2: st.bar_chart(df_ind['realizado'].value_counts())
+                with c2: status_c = df_ind['realizado'].map({True: 'Realizado', False: 'Pendente'}).value_counts(); st.bar_chart(status_c)
