@@ -46,8 +46,7 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 pdf.cell(25, 6, "Prefixo", 1); pdf.cell(35, 6, "Responsavel", 1); pdf.cell(130, 6, "Descricao", 1, ln=True)
                 pdf.set_font("Arial", "", 8)
                 for _, row in df_area.iterrows():
-                    desc = str(row['descricao'])[:80]
-                    pdf.cell(25, 6, str(row['prefixo']), 1); pdf.cell(35, 6, str(row['executor']), 1); pdf.cell(130, 6, desc, 1, ln=True)
+                    pdf.cell(25, 6, str(row['prefixo']), 1); pdf.cell(35, 6, str(row['executor']), 1); pdf.cell(130, 6, str(row['descricao'])[:80], 1, ln=True)
                 pdf.ln(3)
     return pdf.output() if isinstance(pdf.output(), (bytes, bytearray)) else bytes(pdf.output(), 'latin-1')
 
@@ -195,7 +194,7 @@ else:
                     with col_btn:
                         btn_salvar = st.form_submit_button("Salvar", use_container_width=True)
                     with col_info:
-                        st.info("💡 *Digite os horários (ex: 14:00) e clique em Salvar no topo para gravar permanentemente.*")
+                        st.info("💡 *Preencha os horários (Ex: 14:00) e clique em Salvar no topo para gravar permanentemente.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
@@ -205,7 +204,7 @@ else:
                             df_area_f = df_f_per[(df_f_per['data'] == d) & (df_f_per['area'] == area)]
                             if not df_area_f.empty:
                                 st.write(f"**📍 {area}**")
-                                # MUDANÇA: USANDO TEXTCOLUMN (TEXTO PURO) PARA GARANTIR SALVAMENTO
+                                # USANDO TEXTCOLUMN PARA GARANTIR SALVAMENTO SEM ERRO
                                 st.data_editor(
                                     df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id']],
                                     column_config={
@@ -221,19 +220,26 @@ else:
                         for key in st.session_state.keys():
                             if key.startswith("ed_ted_") and st.session_state[key]["edited_rows"]:
                                 partes = key.split("_")
-                                dt_k, ar_k = datetime.strptime(partes[2], '%Y-%m-%d').date(), partes[3]
-                                df_ref = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
+                                dt_k = datetime.strptime(partes[2], '%Y-%m-%d').date()
+                                ar_k = partes[3]
+                                df_referencia = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
-                                    rid = int(df_ref.iloc[idx]['id'])
+                                    rid = int(df_referencia.iloc[idx]['id'])
                                     for col, val in changes.items():
-                                        # ENVIO COMO TEXTO PURO PARA O BANCO (SEM CONVERSÃO COMPLEXA)
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                         conn.commit()
                     st.rerun()
 
         with aba_demo:
+            st.subheader("📊 Indicadores de Manutenção")
             df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
             if not df_ind.empty:
                 c1, c2 = st.columns(2)
-                with c1: st.bar_chart(df_ind['area'].value_counts())
-                with c2: status_c = df_ind['realizado'].map({True: 'Realizado', False: 'Pendente'}).value_counts(); st.bar_chart(status_c)
+                with c1:
+                    st.markdown("**Volume por Área**")
+                    st.bar_chart(df_ind['area'].value_counts())
+                with c2:
+                    st.markdown("**Serviços Concluídos x Pendentes**")
+                    # AJUSTE DO GRÁFICO: Substituindo False/True por Pendente/Concluído
+                    df_status = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
+                    st.bar_chart(df_status)
