@@ -9,8 +9,8 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-# LINK DIRETO E ESTÁVEL DA LOGO
-LOGO_URL = "https://raw.githubusercontent.com/brunofrois/ted-app/main/logo.png" 
+# LINK DIRETO DA IMAGEM (Extraído do GitHub para estabilidade)
+LOGO_URL = "https://ibb.co/KJZFd0r"
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 
@@ -21,8 +21,8 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    .stButton>button {{ background-color: #0066cc; color: white; border-radius: 8px; border: none; font-weight: bold; }}
-    .stButton>button:hover {{ background-color: #004d99; border: none; }}
+    .stButton>button {{ background-color: #0066cc; color: white; border-radius: 5px; font-weight: bold; border: none; }}
+    .stButton>button:hover {{ background-color: #004d99; color: white; border: none; }}
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: #28a745; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #0066cc; padding-left: 10px; margin-top: 20px; }}
     </style>
@@ -42,6 +42,9 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf.set_font("Arial", "B", 16)
     pdf.set_text_color(0, 102, 204)
     pdf.cell(190, 10, f"Relatorio de Manutencao - {NOME_SISTEMA}", ln=True, align="C")
+    pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(190, 10, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
     pdf.ln(5)
     df_periodo = df_periodo.sort_values(by=['data', 'area'])
     for d_process in df_periodo['data'].unique():
@@ -75,9 +78,9 @@ if "logado" not in st.session_state: st.session_state["logado"] = False
 if not st.session_state["logado"]:
     _, col_login, _ = st.columns([1.2, 1, 1.2])
     with col_login:
-        # LOGO NO LOGIN COM FALLBACK
+        # LOGO NO LOGIN
         st.image(LOGO_URL, use_container_width=True)
-        st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-bottom: 20px;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: -15px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
             pw = st.text_input("Senha", type="password", key="p_log")
@@ -91,35 +94,35 @@ else:
     engine = get_engine()
     inicializar_banco()
     
-    # --- BARRA LATERAL ---
+    # --- LOGO NA SIDEBAR ---
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
-        st.markdown(f"<p style='text-align: center; font-size: 0.85rem; color: #666; margin-top:-10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         st.write(f"👤 Perfil: **{st.session_state['perfil'].capitalize()}**")
-        if st.button("Sair do Sistema", use_container_width=True):
+        if st.button("Sair da Conta", use_container_width=True):
             st.session_state["logado"] = False; st.rerun()
 
     if st.session_state["perfil"] == "motorista":
-        aba_solic, aba_hist = st.tabs(["✍️ Abrir Solicitação", "📜 Meus Chamados"])
+        aba_solic, aba_hist = st.tabs(["✍️ Abrir Solicitação", "📜 Status"])
         with aba_solic:
-            st.info("💡 *Descreva o problema do veículo para a oficina.*")
+            st.info("💡 *Preencha os campos abaixo com o prefixo do veículo.*")
             with st.form("f_ch", clear_on_submit=True):
-                p, d = st.text_input("Prefixo"), st.text_area("Descrição do Defeito")
-                if st.form_submit_button("Enviar para Oficina"):
+                p, d = st.text_input("Prefixo"), st.text_area("Descrição")
+                if st.form_submit_button("Enviar para a oficina"):
                     if p and d:
                         with engine.connect() as conn:
                             conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                             conn.commit()
-                        st.success("Solicitação enviada com sucesso!")
+                        st.success("Tudo em dia! Solicitação enviada.")
         with aba_hist:
             st.dataframe(pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine), use_container_width=True)
 
     else:
-        aba_cad, aba_cham, aba_agen, aba_demo = st.tabs(["📋 Cadastro Direto", "📥 Chamados", "📅 Agenda Principal", "📊 Indicadores"])
+        aba_cad, aba_cham, aba_agen, aba_demo = st.tabs(["📋 Cadastro", "📥 Chamados", "📅 Agenda Principal", "📊 Indicadores"])
 
         with aba_cad:
-            st.subheader("📝 Novo Agendamento")
+            st.subheader("📝 Agendamento Direto")
             with st.form("f_d", clear_on_submit=True):
                 c1, c2, c3, c4 = st.columns(4)
                 with c1: d_i = st.date_input("Data", datetime.now())
@@ -162,7 +165,7 @@ else:
             secao_lista_cadastro()
 
         with aba_cham:
-            st.subheader("📥 Aprovação de Solicitações")
+            st.subheader("📥 Aprovação de Chamados")
             @st.fragment
             def secao_aprovacao():
                 df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado' AND status != 'Concluído'", engine)
@@ -173,7 +176,7 @@ else:
                         st.session_state.df_aprov['Área'] = "Mecânica"; st.session_state.df_aprov['OK'] = False
                     
                     ed_c = st.data_editor(st.session_state.df_aprov, hide_index=True, use_container_width=True, column_config={"id": None, "motorista": None, "status": None, "OK": st.column_config.CheckboxColumn("Aprovar?"), "Responsável": st.column_config.TextColumn("Executor"), "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS)}, key="editor_chamados")
-                    if st.button("Mover para Agenda", use_container_width=True):
+                    if st.button("Processar Agendamentos", use_container_width=True):
                         selecionados = ed_c[ed_c['OK'] == True]
                         if not selecionados.empty:
                             with engine.connect() as conn:
@@ -203,7 +206,7 @@ else:
                 with st.form("form_agenda"):
                     col_btn, col_info = st.columns([0.2, 0.8])
                     with col_btn: btn_salvar = st.form_submit_button("Salvar Tudo", use_container_width=True)
-                    with col_info: st.info("💡 *Marque OK para concluir o serviço para o motorista.*")
+                    with col_info: st.info("💡 *Preencha os horários e marque OK para finalizar.*")
 
                     st.markdown("""<style>[data-testid="stTable"] td:nth-child(4), [data-testid="stTable"] td:nth-child(5) {background-color: #d4edda !important; font-weight: bold;}</style>""", unsafe_allow_html=True)
 
@@ -250,6 +253,6 @@ else:
                     st.markdown("**Volume por Área**")
                     st.bar_chart(df_ind['area'].value_counts(), color="#0066cc")
                 with c2:
-                    st.markdown("**Serviços Concluídos x Pendentes**")
+                    st.markdown("**Status de Realização**")
                     df_status = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
                     st.bar_chart(df_status, color="#28a745")
