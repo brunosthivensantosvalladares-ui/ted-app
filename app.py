@@ -12,15 +12,12 @@ SLOGAN = "Seu Controle. Nossa Prioridade."
 LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
-
-# Cores exatas do logotipo
-COR_AZUL = "#3282b8"
-COR_VERDE = "#8ac926"
+COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL E RESPONSIVIDADE (HÍBRIDO) ---
+# --- CSS PARA RESPONSIVIDADE E UNIDADE VISUAL ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
@@ -47,12 +44,11 @@ st.markdown(f"""
             z-index: 1000;
             margin-bottom: 10px;
         }}
-        /* Forçar botões lado a lado no mobile */
+        /* Forçar colunas de botões lado a lado no mobile */
         [data-testid="column"] {{
             width: fit-content !important;
             flex: 1 1 auto !important;
         }}
-    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,18 +106,14 @@ if not st.session_state["logado"]:
         placeholder_topo = st.empty()
         placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>T</span><span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: 0;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
             pw = st.text_input("Senha", type="password", key="p_log")
+            
             if st.button("Acessar Painel Ted", use_container_width=True):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
-                    import time
-                    with st.spinner(""):
-                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tu</span><span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
-                        time.sleep(0.1)
-                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tudo</span> <span style='color: {COR_VERDE};'>em dia</span></h1>", unsafe_allow_html=True)
-                        time.sleep(0.8)
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos")
@@ -136,7 +128,7 @@ else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
         icones = ["📅", "📋", "📥", "📊"]
 
-    # --- MENU LATERAL (Desktop) ---
+    # Barra Lateral (Desktop)
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
         idx_ini = 0
@@ -145,11 +137,11 @@ else:
         escolha = st.radio("NAVEGAÇÃO", opcoes, index=idx_ini)
         if st.button("Sair"): st.session_state["logado"] = False; st.rerun()
 
-    # --- MENU DE ÍCONES TOPO (Mobile) ---
+    # Barra Mobile (Topo Horizontal)
     st.markdown('<div class="mobile-nav">', unsafe_allow_html=True)
-    cols_nav = st.columns(len(opcoes))
+    cols_mob = st.columns(len(opcoes))
     for i, opt in enumerate(opcoes):
-        if cols_nav[i].button(icones[i], key=f"mob_nav_{opt}"):
+        if cols_mob[i].button(icones[i], key=f"mob_nav_{opt}"):
             st.session_state["escolha_mob"] = opt
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -157,7 +149,7 @@ else:
     # --- PÁGINAS MOTORISTA ---
     if escolha == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação")
-        st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
+        st.info("💡 **Dica:** Informe o prefixo e detalhe o problema.")
         with st.form("f_ch", clear_on_submit=True):
             p, d = st.text_input("Prefixo"), st.text_area("Descrição")
             if st.form_submit_button("Enviar"):
@@ -169,15 +161,13 @@ else:
 
     elif escolha == "📜 Status":
         st.subheader("📜 Meus Veículos")
-        st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
     # --- PÁGINAS ADMIN ---
     elif escolha == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
-        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
-        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
+        st.info("💡 **Atenção:** Use este formulário para serviços preventivos.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -185,13 +175,13 @@ else:
             with c3: p_i = st.text_input("Prefixo")
             with c4: a_i = st.selectbox("Área", ORDEM_AREAS)
             ds_i, t_i = st.text_area("Descrição"), st.selectbox("Turno", LISTA_TURNOS)
-            if st.form_submit_button("Confirmar Agendamento"):
+            if st.form_submit_button("Confirmar"):
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
                 st.success("✅ Cadastrado!"); st.rerun()
         
-        st.divider(); st.subheader("📋 Lista de Serviços")
+        st.divider(); st.subheader("📋 Lista Geral")
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
         if not df_lista.empty:
             df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
@@ -211,7 +201,7 @@ else:
 
     elif escolha == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação")
-        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
+        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
@@ -219,10 +209,11 @@ else:
                 st.session_state.df_ap_work = df_p
 
             ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={
+                "data_solicitacao": "Aberto em",
                 "Data_Programada": st.column_config.DateColumn("Data Programada"),
                 "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS),
                 "Aprovar": st.column_config.CheckboxColumn("Aprovar?"),
-                "id": None, "data_solicitacao": "Aberto em"
+                "id": None
             }, key="editor_chamados")
 
             if st.button("Processar Agendamentos"):
@@ -236,7 +227,6 @@ else:
 
     elif escolha == "📅 Agenda Principal":
         st.subheader("📅 Agenda")
-        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -244,7 +234,7 @@ else:
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
-            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_Ted.pdf")
             with c_xls: st.download_button("📊 XLS", to_excel_native(df_f), "Relatorio_Ted.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             with st.form("form_agenda"):
                 btn_salvar = st.form_submit_button("💾 Salvar Tudo")
@@ -269,24 +259,20 @@ else:
                     conn.commit(); st.success("✅ Salvo!"); st.rerun()
 
     elif escolha == "📊 Indicadores":
-        st.subheader("📊 Painel de Performance Operacional")
-        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
+        st.subheader("📊 Indicadores")
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
-        with c1:
-            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
+        with c1: st.markdown("**Por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL); st.caption("🔍 Carga por setor.")
         with c2: 
             if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
-                st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_VERDE)
-                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
-        st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
+                st.markdown("**Eficiência**"); st.bar_chart(df_st, color=COR_VERDE); st.caption("🔍 Capacidade de entrega.")
+        
+        st.divider(); st.markdown("**⏳ Lead Time (Tempo de Resposta)**")
         df_lead = pd.read_sql("SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True", engine)
         if not df_lead.empty:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega real.")
+            with col_m1: st.metric("Média Global", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
             with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
-        else: st.warning("Dados de Lead Time aguardando conclusão do primeiro chamado.")
