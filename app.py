@@ -9,8 +9,8 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-# Link direto funcional para a imagem
-LOGO_URL = "https://i.postimg.cc/WzM4yXXX/logo-png.png" 
+# Link direto funcional para a imagem (apenas após login)
+LOGO_URL = "https://i.postimg.cc/ZqNTW9ZB/logo-png.jpg" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
@@ -79,8 +79,9 @@ if "logado" not in st.session_state: st.session_state["logado"] = False
 if not st.session_state["logado"]:
     _, col_login, _ = st.columns([1.2, 1, 1.2])
     with col_login:
-        st.image(LOGO_URL, use_container_width=True)
-        st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        # RESTAURAÇÃO DO TEXTO TED E SLOGAN NA TELA INICIAL
+        st.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>T</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: 0;'>{SLOGAN}</p>", unsafe_allow_html=True)
         
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
@@ -91,15 +92,11 @@ if not st.session_state["logado"]:
                 
                 if user in users and users[user] == pw:
                     import time
-                    # Criamos um espaço vazio para a animação
                     msg_carregamento = st.empty()
                     
                     with st.spinner("Conectando..."):
-                        # Fase 1: Tudo em dia
                         msg_carregamento.markdown("<h3 style='text-align: center; color: #0066cc;'>Tudo em dia...</h3>", unsafe_allow_html=True)
-                        time.sleep(1.2) # Pausa para leitura
-                        
-                        # Fase 2: Transformação para Ted
+                        time.sleep(1.2)
                         msg_carregamento.markdown("<h2 style='text-align: center; color: #28a745;'>Ted</h2>", unsafe_allow_html=True)
                         time.sleep(1.0)
                         
@@ -113,6 +110,7 @@ else:
     
     # --- MENU DE NAVEGAÇÃO LATERAL ---
     with st.sidebar:
+        # LOGO APARECE APENAS AQUI (APÓS LOGIN)
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
@@ -162,7 +160,7 @@ else:
                 st.rerun()
         st.divider()
         
-        # --- RESTAURAÇÃO DO TÍTULO ---
+        # --- RESTAURAÇÃO DO TÍTULO LISTA DE SERVIÇOS ---
         st.subheader("📋 Lista de serviços")
         
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
@@ -183,7 +181,7 @@ else:
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                     conn.commit(); st.rerun()
 
-    elif escolha == "📥 Chamados":
+    elif escolha == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
         df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado' AND status != 'Concluído'", engine)
         if not df_p.empty:
@@ -203,22 +201,22 @@ else:
 
     elif escolha == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        df_a_carrega = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
+        df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf = st.columns([0.8, 0.2])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje, amanha], key="dt_filter")
         
-        if not df_a_carrega.empty:
-            df_a_carrega['data'] = pd.to_datetime(df_a_carrega['data']).dt.date
-            df_f_per = df_a_carrega[(df_a_carrega['data'] >= p_sel[0]) & (df_a_carrega['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a_carrega
-            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+        if not df_a.empty:
+            df_a['data'] = pd.to_datetime(df_a['data']).dt.date
+            df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a
+            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
             st.divider()
             with st.form("form_agenda"):
                 btn_salvar = st.form_submit_button("Salvar Tudo", use_container_width=True)
-                for d in sorted(df_f_per['data'].unique(), reverse=True):
+                for d in sorted(df_f['data'].unique(), reverse=True):
                     st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                     for area in ORDEM_AREAS:
-                        df_area_f = df_f_per[(df_f_per['data'] == d) & (df_f_per['area'] == area)]
+                        df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                             st.data_editor(df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']], column_config={"id": None, "id_chamado": None, "realizado": st.column_config.CheckboxColumn("OK"), "inicio_disp": st.column_config.TextColumn("Início"), "fim_disp": st.column_config.TextColumn("Fim")}, hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
@@ -228,7 +226,7 @@ else:
                             if key.startswith("ed_ted_") and st.session_state[key]["edited_rows"]:
                                 partes = key.split("_")
                                 dt_k, ar_k = datetime.strptime(partes[2], '%Y-%m-%d').date(), partes[3]
-                                df_ref = df_f_per[(df_f_per['data'] == dt_k) & (df_f_per['area'] == ar_k)]
+                                df_ref = df_f[(df_f['data'] == dt_k) & (df_f['area'] == ar_k)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     row = df_ref.iloc[idx]
                                     rid, id_ch = int(row['id']), row['id_chamado']
