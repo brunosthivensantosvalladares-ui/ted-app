@@ -81,15 +81,38 @@ if not st.session_state["logado"]:
     with col_login:
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
             pw = st.text_input("Senha", type="password", key="p_log")
+            
             if st.button("Acessar Painel Ted"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
+                
                 if user in users and users[user] == pw:
+                    # --- ANIMAÇÃO DE CARREGAMENTO ---
+                    placeholder = st.empty()
+                    with placeholder.container():
+                        st.markdown("---")
+                        # Passo 1: Texto Completo
+                        st.markdown("<h3 style='text-align: center; color: #0066cc;'>Tudo em dia...</h3>", unsafe_allow_html=True)
+                        bar = st.progress(0)
+                        import time
+                        for i in range(1, 101):
+                            time.sleep(0.01) # Simula carregamento rápido
+                            bar.progress(i)
+                            if i == 50:
+                                # Passo 2: Transformação para Ted
+                                st.markdown("<h2 style='text-align: center; color: #28a745;'>→ Ted!</h2>", unsafe_allow_html=True)
+                        
+                        st.success("Acesso autorizado!")
+                        time.sleep(0.8)
+                    
+                    placeholder.empty() # Limpa a animação
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
-                else: st.error("Acesso negado")
+                else: 
+                    st.error("Usuário ou senha incorretos")
 else:
     engine = get_engine()
     inicializar_banco()
