@@ -132,6 +132,8 @@ else:
     # --- PÁGINAS MOTORISTA ---
     if escolha == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
+        # --- RECADO RESTAURADO ---
+        st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
         with st.form("f_ch", clear_on_submit=True):
             p, d = st.text_input("Prefixo do Veículo"), st.text_area("Descrição do Problema")
             if st.form_submit_button("Enviar para Oficina"):
@@ -139,16 +141,22 @@ else:
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                         conn.commit()
-                    st.success("Solicitação enviada com sucesso!")
+                    st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
     elif escolha == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
+        # --- RECADO RESTAURADO ---
+        st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
     # --- PÁGINAS ADMIN ---
     elif escolha == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
+        # --- RECADOS RESTAURADOS ---
+        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados (ex: preventivas).")
+        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
+        
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -160,7 +168,9 @@ else:
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
+                st.success("✅ Serviço cadastrado com sucesso!")
                 st.rerun()
+                
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
         if not df_lista.empty:
@@ -171,17 +181,22 @@ else:
                 with engine.connect() as conn:
                     for i in ed_l[ed_l['Exc']==True]['id'].tolist():
                         conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
-                    conn.commit(); st.rerun()
+                    conn.commit()
+                st.warning("🗑️ Itens excluídos.")
+                st.rerun()
             if st.session_state.ed_lista["edited_rows"]:
                 with engine.connect() as conn:
                     for idx, changes in st.session_state.ed_lista["edited_rows"].items():
                         rid = int(df_lista.iloc[idx]['id'])
                         for col, val in changes.items():
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                    conn.commit(); st.rerun()
+                    conn.commit()
+                st.rerun()
 
     elif escolha == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
+        # --- RECADO RESTAURADO ---
+        st.info("💡 Selecione 'Aprovar' e defina o Executor/Data para transformar o chamado em uma tarefa na agenda.")
         df_p = pd.read_sql("SELECT * FROM chamados WHERE status != 'Agendado' AND status != 'Concluído'", engine)
         if not df_p.empty:
             if 'df_aprov' not in st.session_state:
@@ -190,15 +205,23 @@ else:
             ed_c = st.data_editor(st.session_state.df_aprov, hide_index=True, use_container_width=True, column_config={"OK": st.column_config.CheckboxColumn("Aprovar?"), "Data": st.column_config.DateColumn("Programar para")}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['OK'] == True]
-                with engine.connect() as conn:
-                    for _, r in selecionados.iterrows():
-                        conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data']), "ex": r['Responsável'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Área'], "ic": r['id']})
-                        conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                    conn.commit(); del st.session_state.df_aprov; st.rerun()
-        else: st.info("Nenhum chamado pendente.")
+                if selecionados.empty:
+                    st.warning("Nenhum chamado selecionado para aprovação.")
+                else:
+                    with engine.connect() as conn:
+                        for _, r in selecionados.iterrows():
+                            conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data']), "ex": r['Responsável'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Área'], "ic": r['id']})
+                            conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
+                        conn.commit()
+                    st.success(f"✅ {len(selecionados)} chamados agendados com sucesso!")
+                    del st.session_state.df_aprov; st.rerun()
+        else: st.info("Nenhum chamado pendente no momento.")
 
     elif escolha == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
+        # --- RECADO RESTAURADO ---
+        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
+        
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -208,15 +231,15 @@ else:
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_Ted_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_Ted_{p_sel[0]}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
             with st.form("form_agenda"):
-                btn_salvar = st.form_submit_button("Salvar Tudo")
+                btn_salvar = st.form_submit_button("💾 Salvar Tudo")
                 for d in sorted(df_f['data'].unique(), reverse=True):
                     st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                     for area in ORDEM_AREAS:
                         df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
-                            # --- COLUNAS DE DISPONIBILIDADE RESTAURADAS E ALINHADAS ---
                             st.data_editor(
                                 df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']],
                                 column_config={
@@ -244,10 +267,14 @@ else:
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                                         if col == 'realizado' and val is True and id_ch:
                                             conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
-                    conn.commit(); st.rerun()
+                    conn.commit()
+                    st.success("✅ Alterações salvas com sucesso!")
+                    st.rerun()
 
     elif escolha == "📊 Indicadores":
         st.subheader("📊 Indicadores de Performance")
+        # --- RECADO RESTAURADO ---
+        st.info("Visão geral da produtividade da oficina por área e status.")
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
         if not df_ind.empty:
             c1, c2 = st.columns(2)
