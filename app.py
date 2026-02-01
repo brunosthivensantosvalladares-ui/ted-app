@@ -10,7 +10,7 @@ from fpdf import FPDF
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
 # Link direto funcional para a imagem
-LOGO_URL = "https://i.ibb.co/gL0Ym0M2/logo-png.jpg" 
+LOGO_URL = "https://i.postimg.cc/ZqNTW9ZB/logo-png.jpg" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
