@@ -27,15 +27,25 @@ st.markdown(f"""
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
     
-    /* MENU MOBILE NO TOPO - GRID HORIZONTAL */
-    @media (min-width: 801px) {{
-        .mobile-nav-container {{ display: none; }}
-    }}
+    /* NOVO AJUSTE: FORÇAR NAVEGAÇÃO HORIZONTAL NO MOBILE */
     @media (max-width: 800px) {{
+        /* Seleciona o container que envolve as colunas do menu */
+        div[data-testid="column"] {{
+            width: calc(25% - 10px) !important; /* Força 4 colunas de 25% */
+            flex: 1 1 0% !important;
+            min-width: 0px !important;
+        }}
+        
+        /* Garante que o container pai não permita quebra de linha */
+        div[data-testid="stHorizontalBlock"] {{
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            justify-content: space-around !important;
+        }}
+
         .mobile-nav-container {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-            gap: 5px;
             background-color: white;
             padding: 10px 5px;
             border-bottom: 2px solid {COR_AZUL};
@@ -43,10 +53,6 @@ st.markdown(f"""
             top: 0;
             z-index: 1000;
             margin-bottom: 10px;
-        }}
-        .mobile-nav-container [data-testid="column"] {{
-            min-width: unset !important;
-            flex: 1 1 0% !important;
         }}
     }}
     </style>
@@ -155,7 +161,7 @@ else:
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta"): st.session_state["logado"] = False; st.rerun()
 
-    # MENU MOBILE (GRID HORIZONTAL)
+   # MENU MOBILE (O CSS acima vai forçar o 'st.columns' a não quebrar)
     st.markdown('<div class="mobile-nav-container">', unsafe_allow_html=True)
     m_cols = st.columns(len(opcoes))
     for i, opt in enumerate(opcoes):
