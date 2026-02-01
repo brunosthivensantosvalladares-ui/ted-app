@@ -106,9 +106,12 @@ else:
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
-    # --- ESTADO DE NAVEGAÇÃO SINCRONIZADO ---
+    # --- LÓGICA DE SINCRO DEFINITIVA ---
     if "opcao_selecionada" not in st.session_state:
         st.session_state.opcao_selecionada = opcoes[0]
+
+    def mudar_aba(nova_opcao):
+        st.session_state.opcao_selecionada = nova_opcao
 
     # 1. BARRA LATERAL
     with st.sidebar:
@@ -116,39 +119,34 @@ else:
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # Sincroniza o rádio com a variável de sessão
+        # O rádio lateral controla e é controlado pela variável global
         escolha_sidebar = st.radio(
             "NAVEGAÇÃO", 
             opcoes, 
             index=opcoes.index(st.session_state.opcao_selecionada),
-            key="radio_nav"
+            key="radio_nav",
+            on_change=lambda: mudar_aba(st.session_state.radio_nav)
         )
         
-        # Se mudar no rádio, atualiza a variável global
-        if escolha_sidebar != st.session_state.opcao_selecionada:
-            st.session_state.opcao_selecionada = escolha_sidebar
-            st.rerun()
-
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta"): 
             st.session_state["logado"] = False
             st.rerun()
 
-    # 2. BOTÕES DE ABA NO TOPO (Mobile/Navegação Rápida)
+    # 2. BOTÕES DE ABA NO TOPO (Mobile / Navegação Rápida)
     cols = st.columns(len(opcoes))
     for i, nome in enumerate(opcoes):
-        # O segredo do sincronismo: Se o botão for clicado, ele muda a variável que o rádio usa
-        estilo = "primary" if nome == st.session_state.opcao_selecionada else "secondary"
-        if cols[i].button(nome, key=f"btn_tab_{i}", use_container_width=True, type=estilo):
-            st.session_state.opcao_selecionada = nome
-            st.rerun()
+        # Destaca o botão se ele for a opção atual
+        tipo_estilo = "primary" if nome == st.session_state.opcao_selecionada else "secondary"
+        if cols[i].button(nome, key=f"btn_tab_{i}", use_container_width=True, type=tipo_estilo, on_click=mudar_aba, args=(nome,)):
+            pass # A função mudar_aba já faz o serviço
 
     st.divider()
-    nome_aba = st.session_state.opcao_selecionada
+    aba_ativa = st.session_state.opcao_selecionada
 
-    # --- 3. CONTEÚDO DAS PÁGINAS (COM TODOS OS RECADOS RESTAURADOS) ---
-    if nome_aba == "✍️ Abrir Solicitação":
+    # --- 3. CONTEÚDO DAS PÁGINAS ---
+    if aba_ativa == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
         st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
         with st.form("f_ch", clear_on_submit=True):
@@ -160,13 +158,13 @@ else:
                         conn.commit()
                     st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
-    elif nome_aba == "📜 Status":
+    elif aba_ativa == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
         st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
-    elif nome_aba == "📅 Agenda Principal":
+    elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
         st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
@@ -202,7 +200,7 @@ else:
                                         if col == 'realizado' and val is True and id_ch: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                     conn.commit(); st.success("✅ Alterações salvas!"); st.rerun()
 
-    elif nome_aba == "📋 Cadastro Direto":
+    elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
         st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
@@ -236,7 +234,7 @@ else:
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                     conn.commit(); st.rerun()
 
-    elif nome_aba == "📥 Chamados Oficina":
+    elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
@@ -255,19 +253,19 @@ else:
                         conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
 
-    elif nome_aba == "📊 Indicadores":
+    elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
         st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
         with c1:
             st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            st.caption("🔍 **O que isso mostra?** Setores da oficina com maior carga.")
+            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
         with c2: 
             if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
                 st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_VERDE)
-                st.caption("🔍 **O que isso mostra?** Eficiência de entrega da equipe.")
+                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
         st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
         query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
         df_lead = pd.read_sql(query_lead, engine)
@@ -275,6 +273,6 @@ else:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
+            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre o chamado e a entrega.")
             with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
         else: st.warning("Dados de Lead Time ainda não disponíveis.")
