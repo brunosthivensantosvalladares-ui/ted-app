@@ -20,7 +20,7 @@ COR_VERDE = "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL ---
+# --- CSS PARA UNIDADE VISUAL E RESPONSIVIDADE ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
@@ -29,6 +29,24 @@ st.markdown(f"""
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
+    
+    /* MENU MOBILE NO TOPO */
+    @media (min-width: 801px) {{
+        .mobile-nav {{ display: none; }}
+    }}
+    @media (max-width: 800px) {{
+        .mobile-nav {{
+            display: flex;
+            justify-content: space-around;
+            background-color: white;
+            padding: 10px;
+            border-bottom: 2px solid {COR_AZUL};
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            margin-bottom: 10px;
+        }}
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -107,19 +125,38 @@ else:
     engine = get_engine()
     inicializar_banco()
     
+    # Definição das Opções para Navegação Híbrida
+    if st.session_state["perfil"] == "motorista":
+        opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
+        icones = ["✍️", "📜"]
+    else:
+        opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
+        icones = ["📅", "📋", "📥", "📊"]
+
+    # Barra Lateral (Desktop)
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
-        if st.session_state["perfil"] == "motorista":
-            opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
-        else:
-            opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
-        escolha = st.radio("NAVEGAÇÃO", opcoes)
+        # Se houver uma escolha pendente vinda do mobile, atualiza o index do rádio
+        idx_inicial = 0
+        if "escolha_mob" in st.session_state and st.session_state["escolha_mob"] in opcoes:
+            idx_inicial = opcoes.index(st.session_state["escolha_mob"])
+        
+        escolha = st.radio("NAVEGAÇÃO", opcoes, index=idx_inicial)
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta"):
             st.session_state["logado"] = False; st.rerun()
+
+    # Barra de Navegação Mobile (Exibida apenas via CSS)
+    st.markdown('<div class="mobile-nav">', unsafe_allow_html=True)
+    cols_mob = st.columns(len(opcoes))
+    for i, opt in enumerate(opcoes):
+        if cols_mob[i].button(icones[i], key=f"btn_mob_{opt}"):
+            st.session_state["escolha_mob"] = opt
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # --- PÁGINAS MOTORISTA ---
     if escolha == "✍️ Abrir Solicitação":
@@ -188,16 +225,15 @@ else:
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         
         if not df_p.empty:
-            if 'df_aprov_work' not in st.session_state:
-                # Montagem do DataFrame com Aprovar por último
+            if 'df_ap_work' not in st.session_state:
                 df_p['Executor'] = "Pendente"
                 df_p['Area_Destino'] = "Mecânica"
                 df_p['Data_Programada'] = datetime.now().date()
-                df_p['Aprovar'] = False
-                st.session_state.df_aprov_work = df_p
+                df_p['Aprovar'] = False # Coluna por último
+                st.session_state.df_ap_work = df_p
 
             ed_c = st.data_editor(
-                st.session_state.df_aprov_work,
+                st.session_state.df_ap_work,
                 hide_index=True,
                 use_container_width=True,
                 column_config={
@@ -213,7 +249,7 @@ else:
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if selecionados.empty:
-                    st.warning("Nenhum chamado selecionado para aprovação.")
+                    st.warning("Nenhum chamado selecionado.")
                 else:
                     with engine.connect() as conn:
                         for _, r in selecionados.iterrows():
@@ -230,8 +266,8 @@ else:
                             })
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                         conn.commit()
-                    st.success(f"✅ {len(selecionados)} chamados agendados com sucesso!")
-                    if 'df_aprov_work' in st.session_state: del st.session_state.df_aprov_work
+                    st.success(f"✅ {len(selecionados)} chamados agendados!")
+                    if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
                     st.rerun()
         else:
             st.info("Nenhum chamado pendente no momento.")
@@ -311,12 +347,7 @@ else:
 
         st.divider()
         st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
-        query_lead = """
-            SELECT c.data_solicitacao, t.data as data_conclusao
-            FROM chamados c
-            JOIN tarefas t ON c.id = t.id_chamado
-            WHERE t.realizado = True
-        """
+        query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
         df_lead = pd.read_sql(query_lead, engine)
         
         if not df_lead.empty:
@@ -325,12 +356,10 @@ else:
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days
             df_lead['dias'] = df_lead['dias'].apply(lambda x: max(x, 0)) 
             
-            media_lead = df_lead['dias'].mean()
-            
             col_m1, col_m2 = st.columns([0.3, 0.7])
             with col_m1:
-                st.metric("Lead Time Médio", f"{media_lead:.1f} Dias")
-                st.caption("🔍 **O que isso mostra?** Média de dias desde a abertura do chamado até a conclusão oficial. Representa a agilidade real.")
+                st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias")
+                st.caption("🔍 **O que isso mostra?** Média de dias desde a abertura do chamado até a conclusão. Representa a agilidade real.")
             with col_m2:
                 st.markdown("**Tendência do Tempo de Resposta**")
                 df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
