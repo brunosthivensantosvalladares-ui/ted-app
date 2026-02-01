@@ -20,7 +20,7 @@ COR_VERDE = "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL E RESPONSIVIDADE (Ajustado) ---
+# --- CSS PARA UNIDADE VISUAL E RESPONSIVIDADE ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
@@ -30,34 +30,35 @@ st.markdown(f"""
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
     
-    /* MENU MOBILE NO TOPO COM BORDA VERDE */
+    /* MENU MOBILE NO TOPO - FORÇAR HORIZONTAL */
     @media (min-width: 801px) {{
-        .mobile-nav {{ display: none; }}
+        .mobile-nav-container {{ display: none; }}
     }}
     @media (max-width: 800px) {{
-        .mobile-nav {{
+        .mobile-nav-container {{
             display: flex;
             flex-direction: row;
+            flex-wrap: nowrap;
             justify-content: space-around;
             background-color: white;
-            padding: 5px;
-            border: 3px solid {COR_VERDE}; /* VOLTA DOS ÍCONES VERDE */
-            border-radius: 15px;
+            padding: 10px 5px;
+            border-bottom: 2px solid {COR_AZUL};
             position: sticky;
             top: 0;
             z-index: 1000;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
+            overflow-x: auto;
         }}
-        /* Força colunas de botões a não quebrarem linha */
-        [data-testid="column"] {{
-            width: fit-content !important;
-            flex: 1 1 auto !important;
-            min-width: 45px !important;
+        /* Ajuste para botões dentro da div customizada */
+        .mobile-nav-container .stButton {{
+            flex: 1;
+            margin: 0 2px;
         }}
-        div.stButton > button {{
-            padding: 5px 2px !important;
+        .mobile-nav-container button {{
+            padding: 5px !important;
             font-size: 1.2rem !important;
         }}
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -133,7 +134,8 @@ if not st.session_state["logado"]:
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos")
 else:
-    engine = get_engine(); inicializar_banco()
+    engine = get_engine()
+    inicializar_banco()
     
     # Navegação Híbrida
     if st.session_state["perfil"] == "motorista":
@@ -146,18 +148,22 @@ else:
     # Barra Lateral (Desktop)
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
+        st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         idx_ini = 0
         if "escolha_mob" in st.session_state and st.session_state["escolha_mob"] in opcoes:
             idx_ini = opcoes.index(st.session_state["escolha_mob"])
         escolha = st.radio("NAVEGAÇÃO", opcoes, index=idx_ini)
-        if st.button("Sair"): st.session_state["logado"] = False; st.rerun()
+        st.divider()
+        st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
+        if st.button("Sair da Conta"):
+            st.session_state["logado"] = False; st.rerun()
 
-    # Barra Mobile (Topo Horizontal) com volta verde
-    st.markdown('<div class="mobile-nav">', unsafe_allow_html=True)
-    cols_mob = st.columns(len(opcoes))
+    # MENU MOBILE (FORÇADO HORIZONTAL VIA HTML/CSS)
+    st.markdown('<div class="mobile-nav-container">', unsafe_allow_html=True)
+    cols_nav = st.columns(len(opcoes))
     for i, opt in enumerate(opcoes):
-        if cols_mob[i].button(icones[i], key=f"mob_nav_{opt}"):
+        if cols_nav[i].button(icones[i], key=f"mob_nav_{opt}"):
             st.session_state["escolha_mob"] = opt
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
@@ -198,7 +204,8 @@ else:
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
-                st.success("✅ Serviço cadastrado com sucesso!"); st.rerun()
+                st.success("✅ Serviço cadastrado com sucesso!")
+                st.rerun()
                 
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
@@ -229,7 +236,10 @@ else:
         
         if not df_p.empty:
             if 'df_aprov_work' not in st.session_state:
-                df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); df_p['Aprovar'] = False
+                df_p['Executor'] = "Pendente"
+                df_p['Area_Destino'] = "Mecânica"
+                df_p['Data_Programada'] = datetime.now().date()
+                df_p['Aprovar'] = False
                 st.session_state.df_aprov_work = df_p
 
             ed_c = st.data_editor(
@@ -336,7 +346,7 @@ else:
             st.markdown("**Serviços por Área**")
             if not df_ind.empty:
                 st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-                st.caption("🔍 **O que isso mostra?** Setores da oficina com maior carga de trabalho.")
+                st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga de trabalho.")
         
         with c2:
             st.markdown("**Status de Conclusão**")
@@ -347,7 +357,12 @@ else:
 
         st.divider()
         st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
-        query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
+        query_lead = """
+            SELECT c.data_solicitacao, t.data as data_conclusao
+            FROM chamados c
+            JOIN tarefas t ON c.id = t.id_chamado
+            WHERE t.realizado = True
+        """
         df_lead = pd.read_sql(query_lead, engine)
         
         if not df_lead.empty:
@@ -361,7 +376,7 @@ else:
             col_m1, col_m2 = st.columns([0.3, 0.7])
             with col_m1:
                 st.metric("Lead Time Médio", f"{media_lead:.1f} Dias")
-                st.caption("🔍 Média de dias desde a abertura do chamado até a conclusão. Representa a agilidade real.")
+                st.caption("🔍 **O que isso mostra?** Média de dias desde a abertura do chamado até a conclusão. Representa a agilidade real.")
             with col_m2:
                 st.markdown("**Tendência do Tempo de Resposta**")
                 df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
