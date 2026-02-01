@@ -12,7 +12,10 @@ SLOGAN = "Seu Controle. Nossa Prioridade."
 LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
-COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
+
+# Cores exatas do logotipo
+COR_AZUL = "#3282b8"
+COR_VERDE = "#8ac926"
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
@@ -150,6 +153,7 @@ else:
         st.subheader("📝 Agendamento Direto")
         st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados (ex: preventivas).")
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
+        
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -163,6 +167,7 @@ else:
                     conn.commit()
                 st.success("✅ Serviço cadastrado com sucesso!")
                 st.rerun()
+                
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
         if not df_lista.empty:
@@ -182,7 +187,8 @@ else:
                         rid = int(df_lista.iloc[idx]['id'])
                         for col, val in changes.items():
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                    conn.commit(); st.rerun()
+                    conn.commit()
+                st.rerun()
 
     elif escolha == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
@@ -210,6 +216,7 @@ else:
     elif escolha == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
         st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
+        
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -219,6 +226,7 @@ else:
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_Ted_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_Ted_{p_sel[0]}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            
             with st.form("form_agenda"):
                 btn_salvar = st.form_submit_button("💾 Salvar Tudo")
                 for d in sorted(df_f['data'].unique(), reverse=True):
@@ -254,29 +262,57 @@ else:
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                                         if col == 'realizado' and val is True and id_ch:
                                             conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
-                    conn.commit(); st.success("✅ Alterações salvas!"); st.rerun()
+                    conn.commit()
+                    st.success("✅ Alterações salvas com sucesso!")
+                    st.rerun()
 
     elif escolha == "📊 Indicadores":
-        st.subheader("📊 Indicadores de Performance")
-        st.info("Visão geral da produtividade e tempo de resposta da oficina.")
+        st.subheader("📊 Painel de Performance Operacional")
+        st.info("💡 **Dica:** Utilize esses dados para planejar escalas e identificar gargalos na manutenção.")
         
-        df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
-        if not df_ind.empty:
-            c1, c2 = st.columns(2)
-            with c1: st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            with c2:
-                st.markdown("**Status de Conclusão**")
+        # 1. VOLUME E STATUS
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("**Serviços por Área**")
+            df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
+            if not df_ind.empty:
+                st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
+                st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga de trabalho. Útil para redistribuir recursos ou contratar especialistas.")
+        
+        with c2:
+            st.markdown("**Status de Conclusão**")
+            if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
                 st.bar_chart(df_st, color=COR_VERDE)
-        
+                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega. Se o volume de 'Pendentes' crescer muito, indica atrasos no cronograma.")
+
         st.divider()
-        # --- LEAD TIME ---
-        query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
+
+        # 2. LEAD TIME (COM EXPLICAÇÃO)
+        st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
+        query_lead = """
+            SELECT c.data_solicitacao, t.data as data_conclusao
+            FROM chamados c
+            JOIN tarefas t ON c.id = t.id_chamado
+            WHERE t.realizado = True
+        """
         df_lead = pd.read_sql(query_lead, engine)
+        
         if not df_lead.empty:
             df_lead['data_solicitacao'] = pd.to_datetime(df_lead['data_solicitacao'])
             df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_conclusao'])
-            df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
+            df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days
+            df_lead['dias'] = df_lead['dias'].apply(lambda x: max(x, 0)) 
+            
+            media_lead = df_lead['dias'].mean()
+            
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias", help="Tempo médio entre o chamado e a conclusão.")
-            with col_m2: st.markdown("**Evolução Lead Time (Dias)**"); df_ev = df_lead.groupby('data_conclusao')['dias'].mean(); st.line_chart(df_ev, color=COR_AZUL)
+            with col_m1:
+                st.metric("Lead Time Médio", f"{media_lead:.1f} Dias", help="Média de dias desde a abertura do chamado até a entrega do veículo.")
+                st.caption("🔍 **O que isso mostra?** Representa a agilidade real da sua oficina. Números baixos significam veículos voltando rápido para a rua.")
+            with col_m2:
+                st.markdown("**Tendência do Tempo de Resposta**")
+                df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
+                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
+        else:
+            st.warning("Dados de Lead Time ainda não disponíveis (aguardando conclusão do primeiro chamado).")
