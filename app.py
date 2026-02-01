@@ -329,8 +329,8 @@ else:
             
             col_m1, col_m2 = st.columns([0.3, 0.7])
             with col_m1:
-                st.metric("Lead Time Médio", f"{media_lead:.1f} Dias", help="Média de dias desde a abertura do chamado até a conclusão oficial.")
-                st.caption("🔍 **O que isso mostra?** Representa a agilidade real. Quanto menor o Lead Time, mais rápido o veículo volta para a rua.")
+                st.metric("Lead Time Médio", f"{media_lead:.1f} Dias")
+                st.caption("🔍 **O que isso mostra?** Média de dias desde a abertura do chamado até a conclusão oficial. Representa a agilidade real. Quanto menor o Lead Time, mais rápido o veículo volta para a rua.")
             with col_m2:
                 st.markdown("**Tendência do Tempo de Resposta**")
                 df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
