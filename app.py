@@ -252,6 +252,33 @@ else:
                                         if col == 'realizado' and val is True and id_ch:
                                             conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                     conn.commit(); st.rerun()
+    # --- FUNÇÃO PARA CONVERTER DATAFRAME PARA EXCEL (EM MEMÓRIA) ---
+def to_excel(df):
+    output = BytesIO()
+    # Usamos o formatador do pandas para CSV por ser mais leve e universal
+    # Se preferir .xlsx, o processo é similar com o xlsxwriter
+    return df.to_csv(index=False).encode('utf-8-sig')
+
+# --- NO LOCAL DOS BOTÕES DE DOWNLOAD ---
+c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
+
+with c_per: 
+    p_sel = st.date_input("Filtrar Período", [hoje, amanha], key="dt_filter")
+
+if not df_a_carrega.empty:
+    # ... (lógica de filtro que já existe no seu código) ...
+    
+    with c_pdf:
+        st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+        
+    with c_xls:
+        # BOTÃO RESTAURADO
+        st.download_button(
+            label="📊 Excel",
+            data=to_excel(df_f_per),
+            file_name=f"Relatorio_Manutencao_{p_sel[0]}.csv",
+            mime="text/csv"
+        )
 
     elif escolha == "📊 Indicadores":
         st.subheader("📊 Indicadores")
