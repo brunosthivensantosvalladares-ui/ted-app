@@ -277,8 +277,7 @@ if not df_a_carrega.empty:
             label="📊 Excel",
             data=to_excel(df_f_per),
             file_name=f"Relatorio_Manutencao_{p_sel[0]}.csv",
-            mime="text/csv"
-        )
+            mime="text/csv")
 
     elif escolha == "📊 Indicadores":
         st.subheader("📊 Indicadores")
