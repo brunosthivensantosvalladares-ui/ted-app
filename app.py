@@ -9,38 +9,25 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-# Link direto funcional para a imagem (apenas após login)
 LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
-
-# --- AJUSTE DE PALETA (Cores extraídas do Logo) ---
+# Paleta de Cores do Logo
 COR_AZUL = "#3282b8"
 COR_VERDE = "#8ac926"
 
-# --- CSS PARA UNIDADE VISUAL ATUALIZADO ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
+
+# --- CSS PARA UNIDADE VISUAL ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    /* Botões com o azul do logo */
     .stButton>button {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
     .stButton>button:hover {{ background-color: #276691; color: white; border: none; }}
-    
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
-    
-    /* Cabeçalhos das áreas com o verde do logo */
-    .area-header {{ 
-        color: {COR_VERDE}; 
-        font-weight: bold; 
-        font-size: 1.1rem; 
-        border-left: 5px solid {COR_AZUL}; 
-        padding-left: 10px; 
-        margin-top: 20px; 
-    }}
-    
+    .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
     </style>
 """, unsafe_allow_html=True)
@@ -51,13 +38,17 @@ def get_engine():
     db_url = os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
     return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
 
+# --- FUNÇÃO PARA CONVERTER PARA EXCEL ---
+def to_excel(df):
+    return df.to_csv(index=False).encode('utf-8-sig')
+
 # --- FUNÇÃO PARA GERAR PDF ---
 @st.cache_data(show_spinner=False)
 def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
-    pdf.set_text_color(0, 102, 204)
+    pdf.set_text_color(50, 130, 184)
     pdf.cell(190, 10, f"Relatorio de Manutencao - {NOME_SISTEMA}", ln=True, align="C")
     pdf.ln(5)
     for d_process in sorted(df_periodo['data'].unique(), reverse=True):
@@ -69,8 +60,7 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 pdf.set_font("Arial", "B", 11); pdf.set_fill_color(230, 230, 230)
                 pdf.cell(190, 7, f" Area: {area}", ln=True, fill=True)
                 for _, row in df_area.iterrows():
-                    pdf.set_font("Arial", "", 8)
-                    pdf.cell(190, 6, f"{row['prefixo']} | {row['executor']} | {str(row['descricao'])[:80]}", ln=True)
+                    pdf.set_font("Arial", "", 8); pdf.cell(190, 6, f"{row['prefixo']} | {row['executor']} | {str(row['descricao'])[:80]}", ln=True)
                 pdf.ln(3)
     return pdf.output() if isinstance(pdf.output(), (bytes, bytearray)) else bytes(pdf.output(), 'latin-1')
 
@@ -92,42 +82,33 @@ if not st.session_state["logado"]:
     _, col_login, _ = st.columns([1.2, 1, 1.2])
     with col_login:
         placeholder_topo = st.empty()
-        
-        # ESTADO INICIAL: Ted (T azul, ed verde)
-        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>T</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>T</span><span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: 0;'>{SLOGAN}</p>", unsafe_allow_html=True)
         
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
             pw = st.text_input("Senha", type="password", key="p_log")
-            
             if st.button("Acessar Painel Ted", use_container_width=True):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
-                
                 if user in users and users[user] == pw:
                     import time
                     with st.spinner(""):
-                        # ANIMAÇÃO DE EXPANSÃO (T -> Tudo | e -> em | d -> dia)
-                        # Passo 1: T -> Tudo (Azul)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tu</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        # ANIMAÇÃO DE EXPANSÃO
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tu</span><span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
                         time.sleep(0.1)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tud</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tud</span><span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
                         time.sleep(0.1)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tudo</span> <span style='color: {COR_VERDE};'>ed</span></h1>", unsafe_allow_html=True)
                         time.sleep(0.3)
-                        
-                        # Passo 2: e -> em | d -> dia (Verde)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em d</span></h1>", unsafe_allow_html=True)
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tudo</span> <span style='color: {COR_VERDE};'>em d</span></h1>", unsafe_allow_html=True)
                         time.sleep(0.1)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em di</span></h1>", unsafe_allow_html=True)
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tudo</span> <span style='color: {COR_VERDE};'>em di</span></h1>", unsafe_allow_html=True)
                         time.sleep(0.1)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em dia</span></h1>", unsafe_allow_html=True)
-                        time.sleep(1.0)
-                        
+                        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>Tudo</span> <span style='color: {COR_VERDE};'>em dia</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.8)
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
-                else: 
-                    st.error("Usuário ou senha incorretos")
+                else: st.error("Usuário ou senha incorretos")
 else:
     engine = get_engine()
     inicializar_banco()
@@ -136,14 +117,8 @@ else:
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
-        
-        if st.session_state["perfil"] == "motorista":
-            opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
-        else:
-            opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
-        
+        opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"] if st.session_state["perfil"] == "admin" else ["✍️ Abrir Solicitação", "📜 Status"]
         escolha = st.radio("NAVEGAÇÃO", opcoes)
-        
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta"):
@@ -167,7 +142,7 @@ else:
 
     elif escolha == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
-        st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. Faça demais ajustes ou exclua serviços em caso de agendamentos incorretos. O salvamento é automático.*")
+        st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. O salvamento é automático.*")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -208,7 +183,7 @@ else:
                 st.session_state.df_aprov = df_p.copy()
                 st.session_state.df_aprov['Responsável'] = "Pendente"; st.session_state.df_aprov['Data'] = datetime.now().date(); st.session_state.df_aprov['OK'] = False
             ed_c = st.data_editor(st.session_state.df_aprov, hide_index=True, use_container_width=True, column_config={"id": None, "motorista": None, "status": None, "OK": st.column_config.CheckboxColumn("Aprovar?"), "Responsável": st.column_config.TextColumn("Executor"), "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS)}, key="editor_chamados")
-            if st.button("Processar Agendamentos"):
+            if st.button("Processar Agendamentos", use_container_width=True):
                 selecionados = ed_c[ed_c['OK'] == True]
                 with engine.connect() as conn:
                     for _, r in selecionados.iterrows():
@@ -222,12 +197,13 @@ else:
         st.subheader("📅 Agenda Principal")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
-        c_per, c_pdf = st.columns([0.8, 0.2])
+        c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje, amanha], key="dt_filter")
         if not df_a.empty:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])] if len(p_sel) == 2 else df_a
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
+            with c_xls: st.download_button("📊 Excel", to_excel(df_f), f"Ted_Manutencao_{p_sel[0]}.csv", "text/csv")
             with st.form("form_agenda"):
                 btn_salvar = st.form_submit_button("Salvar Alterações", use_container_width=True)
                 for d in sorted(df_f['data'].unique(), reverse=True):
@@ -252,39 +228,13 @@ else:
                                         if col == 'realizado' and val is True and id_ch:
                                             conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                     conn.commit(); st.rerun()
-    # --- FUNÇÃO PARA CONVERTER DATAFRAME PARA EXCEL (EM MEMÓRIA) ---
-def to_excel(df):
-    output = BytesIO()
-    # Usamos o formatador do pandas para CSV por ser mais leve e universal
-    # Se preferir .xlsx, o processo é similar com o xlsxwriter
-    return df.to_csv(index=False).encode('utf-8-sig')
-
-# --- NO LOCAL DOS BOTÕES DE DOWNLOAD ---
-c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
-
-with c_per: 
-    p_sel = st.date_input("Filtrar Período", [hoje, amanha], key="dt_filter")
-
-if not df_a_carrega.empty:
-    # ... (lógica de filtro que já existe no seu código) ...
-    
-    with c_pdf:
-        st.download_button("📥 PDF", gerar_pdf_periodo(df_f_per, p_sel[0], p_sel[1]), "Relatorio_Ted.pdf")
-        
-    with c_xls:
-        # BOTÃO RESTAURADO
-        st.download_button(
-            label="📊 Excel",
-            data=to_excel(df_f_per),
-            file_name=f"Relatorio_Manutencao_{p_sel[0]}.csv",
-            mime="text/csv")
 
     elif escolha == "📊 Indicadores":
         st.subheader("📊 Indicadores")
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
         if not df_ind.empty:
             c1, c2 = st.columns(2)
-            with c1: st.bar_chart(df_ind['area'].value_counts(), color="#0066cc")
+            with c1: st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
             with c2:
                 df_status = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
-                st.bar_chart(df_status, color="#28a745")
+                st.bar_chart(df_status, color=COR_VERDE)
