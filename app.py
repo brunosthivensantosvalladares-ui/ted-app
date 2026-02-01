@@ -9,7 +9,7 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png" 
+LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
