@@ -21,8 +21,11 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
+    /* Botão Primário (Azul Ted) */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
+    /* Botão Secundário (Inativo) */
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
+    
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
@@ -86,7 +89,8 @@ if not st.session_state["logado"]:
         with st.container(border=True):
             user = st.text_input("Usuário", key="u_log").lower()
             pw = st.text_input("Senha", type="password", key="p_log")
-            if st.button("Acessar Painel Ted", use_container_width=True):
+            # Ajuste: Botão de Login em Azul
+            if st.button("Acessar Painel Ted", use_container_width=True, type="primary"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
                     import time
@@ -105,17 +109,16 @@ else:
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
-    # --- LÓGICA DE SINCRONISMO (CONTROLE DE ESTADO) ---
+    # --- LÓGICA DE SINCRONISMO ---
     if "opcao_selecionada" not in st.session_state:
         st.session_state.opcao_selecionada = opcoes[0]
     
-    # Esta chave força o rádio a atualizar quando o botão do topo é clicado
     if "radio_key" not in st.session_state:
         st.session_state.radio_key = 0
 
     def set_nav(target):
         st.session_state.opcao_selecionada = target
-        st.session_state.radio_key += 1  # Muda a chave para resetar o rádio lateral
+        st.session_state.radio_key += 1 
 
     # 1. BARRA LATERAL
     with st.sidebar:
@@ -123,21 +126,20 @@ else:
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # O rádio lateral
         escolha_sidebar = st.radio(
             "NAVEGAÇÃO", 
             opcoes, 
             index=opcoes.index(st.session_state.opcao_selecionada),
-            key=f"radio_nav_{st.session_state.radio_key}", # Chave dinâmica para sincronizar
+            key=f"radio_nav_{st.session_state.radio_key}",
             on_change=lambda: st.session_state.update({"opcao_selecionada": st.session_state[f"radio_nav_{st.session_state.radio_key}"]})
         )
-        # Atualiza a variável mestra se mudar na sidebar
         if escolha_sidebar != st.session_state.opcao_selecionada:
             st.session_state.opcao_selecionada = escolha_sidebar
 
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
-        if st.button("Sair da Conta"): 
+        # Ajuste: Botão de Sair em Azul
+        if st.button("Sair da Conta", type="primary"): 
             st.session_state["logado"] = False
             st.rerun()
 
