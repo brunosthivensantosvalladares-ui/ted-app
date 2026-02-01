@@ -65,9 +65,8 @@ st.markdown(f"""
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
 def get_engine():
-    db_url = os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
-    return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
-
+    db_url = os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
+    return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
 def inicializar_banco():
     engine = get_engine()
     try:
