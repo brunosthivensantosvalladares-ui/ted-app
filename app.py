@@ -25,7 +25,6 @@ st.markdown(f"""
     .stButton>button:hover {{ background-color: #004d99; color: white; border: none; }}
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: #28a745; font-weight: bold; font-size: 1.1rem; border-left: 5px solid #0066cc; padding-left: 10px; margin-top: 20px; }}
-    /* Estilização do menu lateral */
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
     </style>
 """, unsafe_allow_html=True)
@@ -78,7 +77,7 @@ if not st.session_state["logado"]:
     with col_login:
         placeholder_topo = st.empty()
         
-        # ESTADO INICIAL: Texto Ted e Slogan
+        # ESTADO INICIAL: Ted (T azul, ed verde)
         placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>T</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: 0;'>{SLOGAN}</p>", unsafe_allow_html=True)
         
@@ -92,13 +91,22 @@ if not st.session_state["logado"]:
                 if user in users and users[user] == pw:
                     import time
                     with st.spinner(""):
-                        # PASSO 1: Ted (Cores do Logo)
-                        placeholder_topo.markdown("<h1 style='text-align: center; margin-top: 20px;'><span style='color: #0066cc;'>T</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
-                        time.sleep(1.0)
+                        # ANIMAÇÃO DE EXPANSÃO (T -> Tudo | e -> em | d -> dia)
+                        # Passo 1: T -> Tudo (Azul)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tu</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.1)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tud</span><span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.1)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>ed</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.3)
                         
-                        # PASSO 2: Tudo em dia (Tudo azul, restante verde)
-                        placeholder_topo.markdown("<h2 style='text-align: center; margin-top: 25px;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em dia</span></h2>", unsafe_allow_html=True)
-                        time.sleep(1.2)
+                        # Passo 2: e -> em | d -> dia (Verde)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em d</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.1)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em di</span></h1>", unsafe_allow_html=True)
+                        time.sleep(0.1)
+                        placeholder_topo.markdown("<h1 style='text-align: center; margin-bottom: 0;'><span style='color: #0066cc;'>Tudo</span> <span style='color: #28a745;'>em dia</span></h1>", unsafe_allow_html=True)
+                        time.sleep(1.0)
                         
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
