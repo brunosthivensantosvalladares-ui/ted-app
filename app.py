@@ -9,8 +9,8 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Ted"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-# Link direto estável para a imagem
-LOGO_URL = "https://ibb.co/CKK8pwR9" 
+# Link direto funcional para a imagem
+LOGO_URL = "https://i.ibb.co/gL0Ym0M2/logo-png.jpg" 
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
@@ -94,7 +94,7 @@ else:
     engine = get_engine()
     inicializar_banco()
     
-    # --- MENU DE NAVEGAÇÃO LATERAL ---
+    # --- MENU DE NAVEGAÇÃO LATERAL (ABAS MOVIDAS PARA CÁ) ---
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
@@ -112,7 +112,7 @@ else:
         if st.button("Sair da Conta"):
             st.session_state["logado"] = False; st.rerun()
 
-    # --- PÁGINAS BASEADAS NA ESCOLHA ---
+    # --- PÁGINAS BASEADAS NA ESCOLHA DO MENU LATERAL ---
     if escolha == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação")
         with st.form("f_ch", clear_on_submit=True):
@@ -130,6 +130,7 @@ else:
 
     elif escolha == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
+        # RECUPERADO O RECADO DA ABA CADASTRO
         st.info("💡 *Para reagendar serviços, basta alterar as datas na lista abaixo. Faça demais ajustes ou exclua serviços em caso de agendamentos incorretos. O salvamento é automático.*")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
