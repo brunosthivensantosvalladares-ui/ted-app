@@ -12,10 +12,7 @@ SLOGAN = "Seu Controle. Nossa Prioridade."
 LOGO_URL = "https://i.postimg.cc/wTbmmT7r/logo-png.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
-
-# Cores exatas do logotipo
-COR_AZUL = "#3282b8"
-COR_VERDE = "#8ac926"
+COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
@@ -30,7 +27,7 @@ st.markdown(f"""
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
     
-    /* MENU MOBILE NO TOPO - FORÇAR GRID HORIZONTAL */
+    /* MENU MOBILE NO TOPO - GRID HORIZONTAL */
     @media (min-width: 801px) {{
         .mobile-nav-container {{ display: none; }}
     }}
@@ -47,7 +44,6 @@ st.markdown(f"""
             z-index: 1000;
             margin-bottom: 10px;
         }}
-        /* Impedir empilhamento de colunas internas do Streamlit no mobile */
         .mobile-nav-container [data-testid="column"] {{
             min-width: unset !important;
             flex: 1 1 0% !important;
@@ -138,7 +134,7 @@ if not st.session_state["logado"]:
 else:
     engine = get_engine(); inicializar_banco()
     
-    # Navegação Híbrida
+    # Navegação Híbrida (Perfil)
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
         icones = ["✍️", "📜"]
@@ -159,7 +155,7 @@ else:
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta"): st.session_state["logado"] = False; st.rerun()
 
-    # MENU MOBILE (TOPO GRID HORIZONTAL)
+    # MENU MOBILE (GRID HORIZONTAL)
     st.markdown('<div class="mobile-nav-container">', unsafe_allow_html=True)
     m_cols = st.columns(len(opcoes))
     for i, opt in enumerate(opcoes):
@@ -179,7 +175,7 @@ else:
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                         conn.commit()
-                    st.success("✅ Solicitação enviada com sucesso!")
+                    st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
     elif escolha == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
@@ -190,7 +186,7 @@ else:
     # --- PÁGINAS ADMIN ---
     elif escolha == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
-        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
+        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados (ex: preventivas).")
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
@@ -213,7 +209,8 @@ else:
             ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
             if st.button("🗑️ Excluir Selecionados"):
                 with engine.connect() as conn:
-                    for i in ed_l[ed_l['Exc']==True]['id'].tolist(): conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
+                    for i in ed_l[ed_l['Exc']==True]['id'].tolist():
+                        conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
                     conn.commit(); st.warning("🗑️ Itens excluídos."); st.rerun()
             if st.session_state.ed_lista["edited_rows"]:
                 with engine.connect() as conn:
@@ -225,7 +222,7 @@ else:
 
     elif escolha == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
-        st.info("💡 Marque 'Aprovar' na última coluna para enviar à agenda.")
+        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
@@ -245,7 +242,8 @@ else:
                         for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit(); st.success("✅ Agendados!"); del st.session_state.df_ap_work; st.rerun()
+                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+        else: st.info("Nenhum chamado pendente no momento.")
 
     elif escolha == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
@@ -268,8 +266,11 @@ else:
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                             st.data_editor(df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']], 
-                                column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "inicio_disp": "🕒 Início", "fim_disp": "🕒 Fim", "id": None, "id_chamado": None}, 
-                                hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
+                                column_config={
+                                    "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                    "inicio_disp": "🕒 Início", "fim_disp": "🕒 Fim",
+                                    "id": None, "id_chamado": None
+                                }, hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
@@ -285,17 +286,21 @@ else:
 
     elif escolha == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
-        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos.")
+        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
         with c1:
-            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
+            st.markdown("**Serviços por Área**")
+            if not df_ind.empty:
+                st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
+                st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga de trabalho.")
         with c2: 
+            st.markdown("**Status de Conclusão**")
             if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
-                st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_VERDE)
-                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
+                st.bar_chart(df_st, color=COR_VERDE)
+                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da oficina.")
+        
         st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
         query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
         df_lead = pd.read_sql(query_lead, engine)
@@ -303,6 +308,11 @@ else:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
-            with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
+            with col_m1:
+                st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias")
+                st.caption("🔍 **O que isso mostra?** Média de dias desde a abertura do chamado até a conclusão. Representa a agilidade real.")
+            with col_m2:
+                st.markdown("**Tendência do Tempo de Resposta**")
+                df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
+                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
         else: st.warning("Dados de Lead Time ainda não disponíveis.")
