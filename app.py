@@ -31,20 +31,30 @@ st.markdown(f"""
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
 
-    /* TRANSFORMAR A FLECHINHA EM "MENU" */
-    [data-testid="stSidebarCollapsedControl"]::after {{
-        content: " Menu";
-        color: {COR_AZUL};
-        font-weight: bold;
-        font-size: 1rem;
-        line-height: 2.5;
-    }}
-    /* Ajustar o tamanho do container do botão para caber o texto */
+    /* FORÇAR A PALAVRA "MENU" NO MOBILE */
     [data-testid="stSidebarCollapsedControl"] {{
-        background-color: white;
-        border-radius: 0 10px 10px 0;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        width: 85px !important;
+        background-color: {COR_AZUL} !important;
+        color: white !important;
+        border-radius: 0 8px 8px 0 !important;
+        width: 80px !important;
+        height: 40px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        left: 0 !important;
+    }}
+    
+    /* Insere o texto Menu e esconde o ícone original se necessário */
+    [data-testid="stSidebarCollapsedControl"]::before {{
+        content: "MENU" !important;
+        font-size: 14px !important;
+        font-weight: bold !important;
+        font-family: sans-serif !important;
+    }}
+    
+    /* Esconde a flechinha preta original para não sobrepor o texto */
+    [data-testid="stSidebarCollapsedControl"] svg {{
+        display: none !important;
     }}
     </style>
 """, unsafe_allow_html=True)
