@@ -17,54 +17,59 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL E BOTÃO "MENU" ULTRA-PRECISO ---
+# --- CSS PARA UNIDADE VISUAL ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    
-    /* Botões Azul Ted */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
-    
-    /* Estilo da Barra Lateral */
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
-
-    /* LOCALIZADOR PELO ATRIBUTO DE ÁRIA (ÚNICO PARA A SIDEBAR) */
-    button[aria-label="Open sidebar"], 
-    button[data-testid="stHeaderSidebarNav"] {{
+    
+    /* Estilo que o JavaScript vai aplicar no botão encontrado */
+    .menu-custom-btn {{
         background-color: {COR_AZUL} !important;
+        color: white !important;
         border-radius: 0 10px 10px 0 !important;
         width: 100px !important;
-        height: 40px !important;
-        left: 0 !important;
-        top: 5px !important;
+        height: 38px !important;
         position: fixed !important;
-        z-index: 1000002 !important;
+        top: 5px !important;
+        left: 0 !important;
+        z-index: 999999 !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
-        border: none !important;
-    }}
-
-    button[aria-label="Open sidebar"]::after,
-    button[data-testid="stHeaderSidebarNav"]::after {{
-        content: "MENU" !important;
-        color: white !important;
         font-weight: bold !important;
+        font-family: sans-serif !important;
         font-size: 14px !important;
-        margin-left: 8px !important;
-    }}
-
-    /* Garante que o ícone fique branco e visível */
-    button[aria-label="Open sidebar"] svg,
-    button[data-testid="stHeaderSidebarNav"] svg {{
-        fill: white !important;
-        color: white !important;
+        border: none !important;
     }}
     </style>
 """, unsafe_allow_html=True)
+
+# --- SCRIPT PARA FORÇAR O BOTÃO "MENU" ---
+st.components.v1.html(f"""
+    <script>
+    function fixMenu() {{
+        // Procura o botão pelo ícone de abertura da sidebar
+        const buttons = window.parent.document.querySelectorAll('button');
+        buttons.forEach(btn => {{
+            const aria = btn.getAttribute('aria-label');
+            if (aria === "Open sidebar" || aria === "Abrir barra lateral") {{
+                if (!btn.innerText.includes("MENU")) {{
+                    btn.classList.add("menu-custom-btn");
+                    btn.innerHTML = '<span>MENU</span>';
+                    btn.style.display = "flex";
+                }}
+            }}
+        }});
+    }}
+    // Executa a cada 1 segundo para garantir que o botão seja capturado após o login
+    setInterval(fixMenu, 1000);
+    </script>
+""", height=0)
 
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
