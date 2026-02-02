@@ -190,7 +190,7 @@ else:
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços e horários.")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e preencha os horários. Clique em 'Salvar Tudo' para gravar.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -209,17 +209,16 @@ else:
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                             
-                            # --- AJUSTE DE ALINHAMENTO: OK | Prefixo | Início | Fim | Executor | Descrição ---
+                            # --- ALINHAMENTO DAS COLUNAS SOLICITADO ---
                             st.data_editor(df_area_f[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id', 'id_chamado']], 
                                 column_config={
                                     "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                    "inicio_disp": "Início",
-                                    "fim_disp": "Fim",
+                                    "inicio_disp": "Início", "fim_disp": "Fim",
                                     "id": None, "id_chamado": None
                                 }, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
                 
-                # --- AJUSTE NA FÓRMULA DE SALVAMENTO ---
+                # --- FÓRMULA DE SALVAMENTO AJUSTADA ---
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
@@ -231,10 +230,11 @@ else:
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                                         if col == 'realizado' and val is True:
-                                            # Proteção para não dar erro se o id_chamado for nulo
                                             id_ch = row_data['id_chamado']
-                                            if id_ch and pd.notnull(id_ch):
-                                                conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
+                                            if id_ch and pd.notnull(id_ch): # Proteção contra erro de valor vazio
+                                                try:
+                                                    conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
+                                                except: pass
                     conn.commit(); st.success("✅ Todas as alterações foram salvas!"); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
