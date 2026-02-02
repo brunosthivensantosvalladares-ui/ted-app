@@ -17,7 +17,7 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL E BOTÃO MENU "FLUTUANTE" ---
+# --- CSS PARA UNIDADE VISUAL E BOTÃO MENU INTERATIVO ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
@@ -31,37 +31,49 @@ st.markdown(f"""
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
 
-    /* CRIAÇÃO DO BOTÃO MENU FLUTUANTE (FIXO NO CANTO) */
-    header[data-testid="stHeader"]::before {{
-        content: "MENU";
+    /* O BOTÃO VISUAL (O QUE VOCÊ VÊ) */
+    #custom-menu-trigger {{
         position: fixed;
-        top: 10px;
+        top: 15px;
         left: 10px;
         background-color: {COR_AZUL};
         color: white;
-        padding: 5px 15px;
-        border-radius: 5px;
+        padding: 8px 18px;
+        border-radius: 8px;
         font-weight: bold;
         font-family: sans-serif;
         font-size: 14px;
         z-index: 999999;
         cursor: pointer;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        box-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+        border: 2px solid rgba(255,255,255,0.2);
     }}
 
-    /* Mantém a flechinha original lá, mas deixa ela invisível para o 'MENU' brilhar */
+    /* ESCONDER A FLECHINHA ORIGINAL SEM SUMIR COM ELA */
     button[data-testid="stSidebarCollapseControl"], 
     header[data-testid="stHeader"] button {{
-        opacity: 0.01 !important;
-        width: 80px !important;
-        height: 40px !important;
-        position: fixed !important;
-        left: 10px !important;
-        top: 10px !important;
-        z-index: 1000000 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }}
     </style>
+    
+    <div id="custom-menu-trigger" onclick="window.parent.document.querySelector('button[aria-label=\'Open sidebar\']').click();">
+        MENU
+    </div>
 """, unsafe_allow_html=True)
+
+# --- SCRIPT PARA GARANTIR O CLIQUE NO MOBILE ---
+st.components.v1.html(f"""
+    <script>
+    const trigger = window.parent.document.getElementById('custom-menu-trigger');
+    trigger.addEventListener('click', function() {{
+        // Tenta encontrar o botão de abrir a lateral por múltiplos seletores
+        const sideBtn = window.parent.document.querySelector('button[aria-label="Open sidebar"]') || 
+                        window.parent.document.querySelector('button[data-testid="stHeaderSidebarNav"]');
+        if (sideBtn) sideBtn.click();
+    }});
+    </script>
+""", height=0)
 
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
