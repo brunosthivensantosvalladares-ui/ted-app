@@ -17,18 +17,35 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL ---
+# --- CSS PARA UNIDADE VISUAL E BOTÃO "MENU" ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    /* Botão Primário (Azul Ted) */
+    
+    /* Personalização do botão de Login e Sair */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
-    /* Botão Secundário (Inativo) */
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
     
+    /* Estilo da Barra Lateral */
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
+
+    /* TRANSFORMAR A FLECHINHA EM "MENU" */
+    [data-testid="stSidebarCollapsedControl"]::after {{
+        content: " Menu";
+        color: {COR_AZUL};
+        font-weight: bold;
+        font-size: 1rem;
+        line-height: 2.5;
+    }}
+    /* Ajustar o tamanho do container do botão para caber o texto */
+    [data-testid="stSidebarCollapsedControl"] {{
+        background-color: white;
+        border-radius: 0 10px 10px 0;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        width: 85px !important;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -92,9 +109,7 @@ if not st.session_state["logado"]:
             if st.button("Acessar Painel Ted", use_container_width=True, type="primary"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
-                    # Resetar navegação ao logar para evitar erro de index
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
-                    
                     import time
                     with st.spinner(""):
                         for t in ["Tu", "Tud", "Tudo ", "Tudo e", "Tudo em d", "Tudo em dia"]:
@@ -106,13 +121,11 @@ if not st.session_state["logado"]:
 else:
     engine = get_engine(); inicializar_banco()
     
-    # Define as opções por perfil
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
-    # --- PROTEÇÃO CONTRA O ERRO DE INDEX (VALUEERROR) ---
     if "opcao_selecionada" not in st.session_state or st.session_state.opcao_selecionada not in opcoes:
         st.session_state.opcao_selecionada = opcoes[0]
     
@@ -129,7 +142,6 @@ else:
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # O rádio lateral com índice protegido
         try:
             idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
         except ValueError:
@@ -162,7 +174,7 @@ else:
     st.divider()
     aba_ativa = st.session_state.opcao_selecionada
 
-    # --- 3. CONTEÚDO DAS PÁGINAS ---
+    # --- 3. CONTEÚDO DAS PÁGINAS (RESTAURADO) ---
     if aba_ativa == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
         st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
@@ -290,6 +302,6 @@ else:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
+            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre o chamado e a entrega.")
             with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
         else: st.warning("Dados de Lead Time ainda não disponíveis.")
