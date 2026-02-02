@@ -17,52 +17,18 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL E BOTÃO "MENU" ---
+# --- CSS PARA UNIDADE VISUAL ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
-    
-    /* Botões Azul Ted */
+    /* Botão Primário (Azul Ted) */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
+    /* Botão Secundário (Inativo) */
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
     
-    /* Estilo da Barra Lateral */
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
-
-    /* LOCALIZADOR PELO ATRIBUTO DE ÁRIA (ÚNICO PARA A SIDEBAR) */
-    button[aria-label="Open sidebar"], 
-    button[data-testid="stHeaderSidebarNav"] {{
-        background-color: {COR_AZUL} !important;
-        border-radius: 0 10px 10px 0 !important;
-        width: 100px !important;
-        height: 40px !important;
-        left: 0 !important;
-        top: 5px !important;
-        position: fixed !important;
-        z-index: 1000002 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border: none !important;
-    }}
-
-    button[aria-label="Open sidebar"]::after,
-    button[data-testid="stHeaderSidebarNav"]::after {{
-        content: "MENU" !important;
-        color: white !important;
-        font-weight: bold !important;
-        font-size: 14px !important;
-        margin-left: 8px !important;
-    }}
-
-    /* Garante que o ícone fique branco e visível */
-    button[aria-label="Open sidebar"] svg,
-    button[data-testid="stHeaderSidebarNav"] svg {{
-        fill: white !important;
-        color: white !important;
-    }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -126,7 +92,9 @@ if not st.session_state["logado"]:
             if st.button("Acessar Painel Ted", use_container_width=True, type="primary"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
+                    # Resetar navegação ao logar para evitar erro de index
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
+                    
                     import time
                     with st.spinner(""):
                         for t in ["Tu", "Tud", "Tudo ", "Tudo e", "Tudo em d", "Tudo em dia"]:
@@ -138,12 +106,13 @@ if not st.session_state["logado"]:
 else:
     engine = get_engine(); inicializar_banco()
     
+    # Define as opções por perfil
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
-    # Proteção de Navegação
+    # --- PROTEÇÃO CONTRA O ERRO DE INDEX (VALUEERROR) ---
     if "opcao_selecionada" not in st.session_state or st.session_state.opcao_selecionada not in opcoes:
         st.session_state.opcao_selecionada = opcoes[0]
     
@@ -160,10 +129,12 @@ else:
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
+        # O rádio lateral com índice protegido
         try:
             idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
         except ValueError:
-            idx_seguro = 0; st.session_state.opcao_selecionada = opcoes[0]
+            idx_seguro = 0
+            st.session_state.opcao_selecionada = opcoes[0]
 
         escolha_sidebar = st.radio(
             "NAVEGAÇÃO", 
@@ -175,7 +146,7 @@ else:
         
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
-        if st.button("Sair da Conta", type="primary", key="btn_logout"): 
+        if st.button("Sair da Conta", type="primary"): 
             st.session_state["logado"] = False
             st.rerun()
 
@@ -202,15 +173,17 @@ else:
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                         conn.commit()
-                    st.success("✅ Solicitação enviada com sucesso!")
+                    st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
     elif aba_ativa == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
+        st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -242,10 +215,12 @@ else:
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
                                         if col == 'realizado' and val is True and id_ch: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
-                    conn.commit(); st.success("✅ Salvo!"); st.rerun()
+                    conn.commit(); st.success("✅ Alterações salvas!"); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
+        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
+        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -257,16 +232,34 @@ else:
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
-                st.success("✅ Cadastrado!"); st.rerun()
+                st.success("✅ Serviço cadastrado!"); st.rerun()
+        st.divider(); st.subheader("📋 Lista de serviços")
+        df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
+        if not df_lista.empty:
+            df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
+            df_lista['Exc'] = False
+            ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
+            if st.button("🗑️ Excluir Selecionados"):
+                with engine.connect() as conn:
+                    for i in ed_l[ed_l['Exc']==True]['id'].tolist(): conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
+                    conn.commit(); st.warning("🗑️ Itens excluídos."); st.rerun()
+            if st.session_state.ed_lista["edited_rows"]:
+                with engine.connect() as conn:
+                    for idx, changes in st.session_state.ed_lista["edited_rows"].items():
+                        rid = int(df_lista.iloc[idx]['id'])
+                        for col, val in changes.items():
+                            if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                    conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
+        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
                 df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
-            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
+            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
@@ -274,15 +267,29 @@ else:
                         for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit(); st.success("✅ Processados!"); del st.session_state.df_ap_work; st.rerun()
-        else: st.info("Nenhum chamado pendente.")
+                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+        else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
-        st.subheader("📊 Performance")
+        st.subheader("📊 Painel de Performance Operacional")
+        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
+        c1, c2 = st.columns(2)
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
-        if not df_ind.empty:
-            c1, c2 = st.columns(2)
-            with c1: st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            with c2: 
+        with c1:
+            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
+            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
+        with c2: 
+            if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
-                st.bar_chart(df_st, color=COR_VERDE)
+                st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_VERDE)
+                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
+        st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
+        query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
+        df_lead = pd.read_sql(query_lead, engine)
+        if not df_lead.empty:
+            df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
+            df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
+            col_m1, col_m2 = st.columns([0.3, 0.7])
+            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
+            with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
+        else: st.warning("Dados de Lead Time ainda não disponíveis.")
