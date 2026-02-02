@@ -21,8 +21,11 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
+    /* Botão Primário (Azul Ted) */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
+    /* Botão Secundário (Inativo) */
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
+    
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
@@ -61,20 +64,29 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf.set_font("Arial", "", 10); pdf.set_text_color(0, 0, 0)
     pdf.cell(190, 10, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
     pdf.ln(5)
+    
     for d_process in sorted(df_periodo['data'].unique(), reverse=True):
         d_formatada = pd.to_datetime(d_process).strftime('%d/%m/%Y')
         pdf.set_font("Arial", "B", 12); pdf.cell(190, 10, f"Data: {d_formatada}", ln=True)
+        
         for area in ORDEM_AREAS:
             df_area = df_periodo[(df_periodo['data'] == d_process) & (df_periodo['area'] == area)]
             if not df_area.empty:
                 pdf.set_font("Arial", "B", 10); pdf.set_fill_color(235, 235, 235)
                 pdf.cell(190, 7, f" Area: {area}", ln=True, fill=True)
-                pdf.set_font("Arial", "B", 8); pdf.cell(20, 6, "Prefixo", 1); pdf.cell(30, 6, "Executor", 1); pdf.cell(40, 6, "Disponibilidade", 1); pdf.cell(100, 6, "Descricao", 1, ln=True)
+                
+                pdf.set_font("Arial", "B", 8); pdf.set_text_color(100)
+                pdf.cell(20, 6, "Prefixo", 1); pdf.cell(30, 6, "Executor", 1); pdf.cell(40, 6, "Disponibilidade", 1); pdf.cell(100, 6, "Descricao", 1, ln=True)
+                
                 pdf.set_font("Arial", "", 7); pdf.set_text_color(0)
                 for _, row in df_area.iterrows():
                     disp = f"{row['inicio_disp']} - {row['fim_disp']}"
                     desc = str(row['descricao'])[:65] + "..." if len(str(row['descricao'])) > 65 else str(row['descricao'])
-                    pdf.cell(20, 6, str(row['prefixo']), 1); pdf.cell(30, 6, str(row['executor']), 1); pdf.cell(40, 6, disp, 1); pdf.cell(100, 6, desc, 1, ln=True)
+                    
+                    pdf.cell(20, 6, str(row['prefixo']), 1)
+                    pdf.cell(30, 6, str(row['executor']), 1)
+                    pdf.cell(40, 6, disp, 1)
+                    pdf.cell(100, 6, desc, 1, ln=True)
                 pdf.ln(2)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -93,11 +105,18 @@ if not st.session_state["logado"]:
             if st.button("Acessar Painel Ted", use_container_width=True, type="primary"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
+                    if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
+                    import time
+                    with st.spinner(""):
+                        for t in ["Tu", "Tud", "Tudo ", "Tudo e", "Tudo em d", "Tudo em dia"]:
+                            placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:4]}</span><span style='color: {COR_VERDE};'>{t[4:]}</span></h1>", unsafe_allow_html=True)
+                            time.sleep(0.05)
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos")
 else:
     engine = get_engine(); inicializar_banco()
+    
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
@@ -105,20 +124,55 @@ else:
 
     if "opcao_selecionada" not in st.session_state or st.session_state.opcao_selecionada not in opcoes:
         st.session_state.opcao_selecionada = opcoes[0]
+    
+    if "radio_key" not in st.session_state:
+        st.session_state.radio_key = 0
 
+    def set_nav(target):
+        st.session_state.opcao_selecionada = target
+        st.session_state.radio_key += 1 
+
+    # 1. BARRA LATERAL
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
-        st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666;'>{SLOGAN}</p>", unsafe_allow_html=True)
-        escolha_sidebar = st.radio("NAVEGAÇÃO", opcoes, index=opcoes.index(st.session_state.opcao_selecionada), key=f"nav_radio")
-        st.session_state.opcao_selecionada = escolha_sidebar
+        st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
+        st.divider()
+        
+        try:
+            idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
+        except ValueError:
+            idx_seguro = 0; st.session_state.opcao_selecionada = opcoes[0]
+
+        escolha_sidebar = st.radio(
+            "NAVEGAÇÃO", 
+            opcoes, 
+            index=idx_seguro,
+            key=f"radio_nav_{st.session_state.radio_key}",
+            on_change=lambda: st.session_state.update({"opcao_selecionada": st.session_state[f"radio_nav_{st.session_state.radio_key}"]})
+        )
+        
+        st.divider()
+        st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
         if st.button("Sair da Conta", type="primary"): 
             st.session_state["logado"] = False
             st.rerun()
 
+    # 2. BOTÕES DE ABA NO TOPO
+    cols = st.columns(len(opcoes))
+    for i, nome in enumerate(opcoes):
+        eh_ativo = nome == st.session_state.opcao_selecionada
+        if cols[i].button(nome, key=f"btn_tab_{i}", use_container_width=True, 
+                         type="primary" if eh_ativo else "secondary",
+                         on_click=set_nav, args=(nome,)):
+            pass
+
+    st.divider()
     aba_ativa = st.session_state.opcao_selecionada
 
+    # --- 3. CONTEÚDO DAS PÁGINAS ---
     if aba_ativa == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
+        st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
         with st.form("f_ch", clear_on_submit=True):
             p, d = st.text_input("Prefixo do Veículo"), st.text_area("Descrição do Problema")
             if st.form_submit_button("Enviar para Oficina"):
@@ -126,15 +180,17 @@ else:
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                         conn.commit()
-                    st.success("✅ Solicitação enviada com sucesso!")
+                    st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
     elif aba_ativa == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
+        st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e preencha os horários. Clique em 'Salvar Tudo' para gravar.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -152,54 +208,94 @@ else:
                         df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
+                            
+                            # --- ALINHAMENTO DAS COLUNAS: OK | Prefixo | Início | Fim | Executor | Descrição ---
                             st.data_editor(df_area_f[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id', 'id_chamado']], 
-                                column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "id": None, "id_chamado": None},
+                                column_config={
+                                    "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                    "inicio_disp": "Início",
+                                    "fim_disp": "Fim",
+                                    "id": None, "id_chamado": None
+                                }, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
+                
+                # --- FÓRMULA DE SALVAMENTO REFORÇADA ---
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
                             if key.startswith("ed_ted_") and st.session_state[key]["edited_rows"]:
-                                d_str, a_str = key.split("_")[2], key.split("_")[3]
-                                df_base = df_f[(df_f['data'].astype(str) == d_str) & (df_f['area'] == a_str)]
+                                dt_r, ar_r = key.split("_")[2], key.split("_")[3]
+                                df_rows = df_f[(df_f['data'].astype(str) == dt_r) & (df_f['area'] == ar_r)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
-                                    row_data = df_base.iloc[idx]; rid = int(row_data['id'])
+                                    row_data = df_rows.iloc[idx]; rid = int(row_data['id'])
+                                    # Grava todas as colunas alteradas (OK, Horários, etc)
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                                        # Proteção contra ValueError no id_chamado
                                         if col == 'realizado' and val is True:
                                             id_ch = row_data['id_chamado']
                                             if id_ch and pd.notnull(id_ch):
-                                                try: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
+                                                try:
+                                                    conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                                                 except: pass
-                    conn.commit(); st.success("✅ Salvo!"); st.rerun()
+                    conn.commit(); st.success("✅ Todas as alterações foram salvas!"); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
+        st.subheader("📝 Agendamento Direto")
+        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
+        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
-            d_i, e_i, p_i, a_i = st.date_input("Data"), st.text_input("Executor"), st.text_input("Prefixo"), st.selectbox("Área", ORDEM_AREAS)
-            s_i, f_i = st.text_input("Início", "08:00"), st.text_input("Fim", "10:00")
-            ds_i = st.text_area("Descrição")
-            if st.form_submit_button("Cadastrar"):
+            c1, c2, c3, c4 = st.columns(4)
+            with c1: d_i = st.date_input("Data", datetime.now())
+            with c2: e_i = st.text_input("Executor")
+            with c3: p_i = st.text_input("Prefixo")
+            with c4: a_i = st.selectbox("Área", ORDEM_AREAS)
+            c5, c6 = st.columns(2)
+            with c5: t_ini = st.text_input("Início (Ex: 08:00)", "00:00")
+            with c6: t_fim = st.text_input("Fim (Ex: 10:00)", "00:00")
+            ds_i, t_i = st.text_area("Descrição"), st.selectbox("Turno", LISTA_TURNOS)
+            if st.form_submit_button("Confirmar Agendamento"):
                 with engine.connect() as conn:
-                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, realizado, origem) VALUES (:dt, :ex, :pr, :si, :fi, :ds, :ar, 'Não definido', False, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "si": s_i, "fi": f_i, "ds": ds_i, "ar": a_i})
-                    conn.commit(); st.success("✅ Cadastrado!"); st.rerun()
+                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ti": t_ini, "tf": t_fim, "ds": ds_i, "ar": a_i, "tu": t_i})
+                    conn.commit()
+                st.success("✅ Serviço cadastrado!"); st.rerun()
+        st.divider(); st.subheader("📋 Lista de serviços")
+        df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
+        if not df_lista.empty:
+            df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
+            df_lista['Exc'] = False
+            ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
+            if st.button("🗑️ Excluir Selecionados"):
+                with engine.connect() as conn:
+                    for i in ed_l[ed_l['Exc']==True]['id'].tolist(): conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
+                    conn.commit(); st.warning("🗑️ Itens excluídos."); st.rerun()
+            if st.session_state.ed_lista["edited_rows"]:
+                with engine.connect() as conn:
+                    for idx, changes in st.session_state.ed_lista["edited_rows"].items():
+                        rid = int(df_lista.iloc[idx]['id'])
+                        for col, val in changes.items():
+                            if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                    conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
+        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
                 df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); 
                 df_p['Inicio'] = "08:00"; df_p['Fim'] = "10:00"; df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
-            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"id": None}, key="editor_chamados")
+            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
-                sel = ed_c[ed_c['Aprovar'] == True]
-                if not sel.empty:
+                selecionados = ed_c[ed_c['Aprovar'] == True]
+                if not selecionados.empty:
                     with engine.connect() as conn:
-                        for _, r in sel.iterrows():
+                        for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ti": r['Inicio'], "tf": r['Fim'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit(); st.success("✅ Processado!"); del st.session_state.df_ap_work; st.rerun()
-        else: st.info("Sem chamados pendentes.")
+                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+        else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
@@ -222,7 +318,5 @@ else:
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
             with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre chamado e entrega.")
-            with col_m2: 
-                df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
-                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
-        else: st.warning("Dados de Lead Time ainda não disponíveis.")            
+            with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
+        else: st.warning("Dados de Lead Time ainda não disponíveis.")
