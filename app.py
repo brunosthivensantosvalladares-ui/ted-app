@@ -73,8 +73,12 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 pdf.set_font("Arial", "B", 11); pdf.set_fill_color(230, 230, 230)
                 pdf.cell(190, 7, f" Area: {area}", ln=True, fill=True)
                 for _, row in df_area.iterrows():
-                    pdf.set_font("Arial", "", 8); pdf.cell(190, 6, f"{row['prefixo']} | {row['executor']} | {str(row['descricao'])[:80]}", ln=True)
-                pdf.ln(3)
+                    pdf.set_font("Arial", "B", 9); pdf.cell(190, 6, f"Prefixo: {row['prefixo']} | Executor: {row['executor']}", ln=True)
+                    # Adicionando o horário de disponibilidade aqui:
+                    pdf.set_font("Arial", "I", 8); pdf.cell(190, 5, f" Disponibilidade: Inicio as {row['inicio_disp']} | Fim as {row['fim_disp']}", ln=True)
+                    pdf.set_font("Arial", "", 8); pdf.multi_cell(190, 5, f" Descricao: {str(row['descricao'])}")
+                    pdf.ln(1)
+                pdf.ln(2)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 3. LÓGICA DE LOGIN ---
@@ -92,9 +96,7 @@ if not st.session_state["logado"]:
             if st.button("Acessar Painel Ted", use_container_width=True, type="primary"):
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
-                    # Resetar navegação ao logar para evitar erro de index
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
-                    
                     import time
                     with st.spinner(""):
                         for t in ["Tu", "Tud", "Tudo ", "Tudo e", "Tudo em d", "Tudo em dia"]:
@@ -106,13 +108,11 @@ if not st.session_state["logado"]:
 else:
     engine = get_engine(); inicializar_banco()
     
-    # Define as opções por perfil
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
-    # --- PROTEÇÃO CONTRA O ERRO DE INDEX (VALUEERROR) ---
     if "opcao_selecionada" not in st.session_state or st.session_state.opcao_selecionada not in opcoes:
         st.session_state.opcao_selecionada = opcoes[0]
     
@@ -129,12 +129,10 @@ else:
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
-        # O rádio lateral com índice protegido
         try:
             idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
         except ValueError:
-            idx_seguro = 0
-            st.session_state.opcao_selecionada = opcoes[0]
+            idx_seguro = 0; st.session_state.opcao_selecionada = opcoes[0]
 
         escolha_sidebar = st.radio(
             "NAVEGAÇÃO", 
@@ -202,7 +200,7 @@ else:
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                             st.data_editor(df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']], 
-                                column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "id": None, "id_chamado": None}, 
+                                column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "inicio_disp": "Início", "fim_disp": "Fim", "id": None, "id_chamado": None}, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
                 if btn_salvar:
                     with engine.connect() as conn:
@@ -227,10 +225,13 @@ else:
             with c2: e_i = st.text_input("Executor")
             with c3: p_i = st.text_input("Prefixo")
             with c4: a_i = st.selectbox("Área", ORDEM_AREAS)
+            c5, c6 = st.columns(2)
+            with c5: t_ini = st.text_input("Início (Ex: 08:00)", "00:00")
+            with c6: t_fim = st.text_input("Fim (Ex: 10:00)", "00:00")
             ds_i, t_i = st.text_area("Descrição"), st.selectbox("Turno", LISTA_TURNOS)
             if st.form_submit_button("Confirmar Agendamento"):
                 with engine.connect() as conn:
-                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
+                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ti": t_ini, "tf": t_fim, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
                 st.success("✅ Serviço cadastrado!"); st.rerun()
         st.divider(); st.subheader("📋 Lista de serviços")
@@ -238,7 +239,7 @@ else:
         if not df_lista.empty:
             df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
             df_lista['Exc'] = False
-            ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
+            ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
             if st.button("🗑️ Excluir Selecionados"):
                 with engine.connect() as conn:
                     for i in ed_l[ed_l['Exc']==True]['id'].tolist(): conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
@@ -257,15 +258,16 @@ else:
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
-                df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); df_p['Aprovar'] = False
+                df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); 
+                df_p['Inicio'] = "08:00"; df_p['Fim'] = "10:00"; df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
-            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
+            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
                     with engine.connect() as conn:
                         for _, r in selecionados.iterrows():
-                            conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
+                            conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ti": r['Inicio'], "tf": r['Fim'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                         conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
