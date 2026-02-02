@@ -190,7 +190,7 @@ else:
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        st.info("💡 **Aviso:** Marque o campo 'OK' e preencha os horários. Clique em 'Salvar Tudo' para gravar.")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços e horários.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -228,13 +228,12 @@ else:
                                 df_rows = df_f[(df_f['data'].astype(str) == dt_r) & (df_f['area'] == ar_r)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     row_data = df_rows.iloc[idx]; rid = int(row_data['id'])
-                                    # Grava cada coluna alterada individualmente
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                                        # Se marcar realizado, atualiza status do chamado vinculado
                                         if col == 'realizado' and val is True:
+                                            # Proteção para não dar erro se o id_chamado for nulo
                                             id_ch = row_data['id_chamado']
-                                            if id_ch: 
+                                            if id_ch and pd.notnull(id_ch):
                                                 conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                     conn.commit(); st.success("✅ Todas as alterações foram salvas!"); st.rerun()
 
