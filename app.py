@@ -17,62 +17,33 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FIXAR O BOTÃO MENU NO TOPO ---
-    st.markdown(f"""
-        <style>
-        /* Esconde a flechinha nativa */
-        button[data-testid="stSidebarCollapseControl"], 
-        header[data-testid="stHeader"] button {{ display: none !important; }}
+# --- CSS PARA UNIDADE VISUAL E BOTÃO MENU ---
+st.markdown(f"""
+<style>
+    .stApp {{ background-color: #f8f9fa; }}
+    /* Botões Azul Ted */
+    .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
+    .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
+    
+    [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
+    .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
+    div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
 
-        /* Posiciona o botão de MENU que criaremos abaixo */
-        div.stElementContainer:has(button[key="btn_menu_real"]) {{
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 999999;
-            width: 100px !important;
-        }}
-        </style>
-    """, unsafe_allow_html=True)
+    /* Esconde a flechinha nativa */
+    button[data-testid="stSidebarCollapseControl"], 
+    header[data-testid="stHeader"] button {{ display: none !important; }}
 
-    # --- ESTADO DE NAVEGAÇÃO ---
-    if "opcao_selecionada" not in st.session_state:
-        st.session_state.opcao_selecionada = opcoes[0]
-    if "sidebar_aberta" not in st.session_state:
-        st.session_state.sidebar_aberta = False
+    /* Posiciona o botão de MENU customizado no topo */
+    div.stElementContainer:has(button[key="btn_menu_real"]) {{
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 999999;
+        width: 100px !important;
+    }}
+</style>
+""", unsafe_allow_html=True)
 
-    # --- O BOTÃO MENU REAL (Funciona como gatilho) ---
-    # Ao clicar aqui, ele muda um estado que a sidebar reconhece
-    if st.button("☰ MENU", key="btn_menu_real", type="primary"):
-        st.session_state.sidebar_aberta = not st.session_state.sidebar_aberta
-        # Pequeno aviso visual para o usuário olhar para a esquerda
-        st.toast("Opções de Perfil abertas na lateral ⬅️")
-
-    # 1. BARRA LATERAL
-    with st.sidebar:
-        st.image(LOGO_URL, use_container_width=True)
-        st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
-        st.divider()
-        
-        # Sincronismo do Rádio
-        idx_seguro = opcoes.index(st.session_state.opcao_selecionada) if st.session_state.opcao_selecionada in opcoes else 0
-        escolha_sidebar = st.radio(
-            "NAVEGAÇÃO", 
-            opcoes, 
-            index=idx_seguro,
-            key=f"radio_nav_main"
-        )
-        if escolha_sidebar != st.session_state.opcao_selecionada:
-            st.session_state.opcao_selecionada = escolha_sidebar
-            st.rerun()
-
-        st.divider()
-        st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
-        # Botão de Sair Azul
-        if st.button("Sair da Conta", type="primary", key="btn_sair_def"): 
-            st.session_state["logado"] = False
-            st.rerun()
-            
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
 def get_engine():
@@ -134,23 +105,19 @@ if not st.session_state["logado"]:
                 users = {"bruno": "master789", "admin": "12345", "motorista": "12345"}
                 if user in users and users[user] == pw:
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
-                    import time
-                    with st.spinner(""):
-                        for t in ["Tu", "Tud", "Tudo ", "Tudo e", "Tudo em d", "Tudo em dia"]:
-                            placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:4]}</span><span style='color: {COR_VERDE};'>{t[4:]}</span></h1>", unsafe_allow_html=True)
-                            time.sleep(0.05)
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
                     st.rerun()
                 else: st.error("Usuário ou senha incorretos")
 else:
     engine = get_engine(); inicializar_banco()
     
-    # 1. Definição de Opções
+    # Definição de Opções baseada no perfil
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores"]
 
+    # Estado de Navegação e Chave do Radio para sincronismo
     if "opcao_selecionada" not in st.session_state or st.session_state.opcao_selecionada not in opcoes:
         st.session_state.opcao_selecionada = opcoes[0]
     
@@ -161,18 +128,17 @@ else:
         st.session_state.opcao_selecionada = target
         st.session_state.radio_key += 1 
 
+    # --- BOTÃO MENU REAL (Gatilho visual para Sidebar) ---
+    if st.button("☰ MENU", key="btn_menu_real", type="primary"):
+        st.toast("Opções de Perfil abertas na lateral ⬅️")
+
     # 1. BARRA LATERAL
     with st.sidebar:
         st.image(LOGO_URL, use_container_width=True)
         st.markdown(f"<p style='text-align: center; font-size: 0.8rem; color: #666; margin-top: -10px;'>{SLOGAN}</p>", unsafe_allow_html=True)
         st.divider()
         
-        try:
-            idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
-        except ValueError:
-            idx_seguro = 0
-            st.session_state.opcao_selecionada = opcoes[0]
-
+        idx_seguro = opcoes.index(st.session_state.opcao_selecionada)
         escolha_sidebar = st.radio(
             "NAVEGAÇÃO", 
             opcoes, 
@@ -183,11 +149,11 @@ else:
         
         st.divider()
         st.write(f"👤 **{st.session_state['perfil'].capitalize()}**")
-        if st.button("Sair da Conta", type="primary"): 
+        if st.button("Sair da Conta", type="primary", key="btn_sair_def"): 
             st.session_state["logado"] = False
             st.rerun()
 
-    # 2. BOTÕES DE ABA NO TOPO
+    # 2. BOTÕES DE ABA NO TOPO (Sincronizados)
     cols = st.columns(len(opcoes))
     for i, nome in enumerate(opcoes):
         eh_ativo = nome == st.session_state.opcao_selecionada
@@ -199,7 +165,7 @@ else:
     st.divider()
     aba_ativa = st.session_state.opcao_selecionada
 
-    # --- 3. CONTEÚDO DAS PÁGINAS (RESTAURADO) ---
+    # --- 3. CONTEÚDO DAS PÁGINAS ---
     if aba_ativa == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
         st.info("💡 **Dica:** Informe o prefixo e detalhe o problema para que a oficina possa se programar.")
@@ -210,11 +176,10 @@ else:
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status) VALUES ('motorista', :p, :d, :dt, 'Pendente')"), {"p": p, "d": d, "dt": str(datetime.now().date())})
                         conn.commit()
-                    st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
+                    st.success("✅ Solicitação enviada com sucesso!")
 
     elif aba_ativa == "📜 Status":
         st.subheader("📜 Status dos Meus Veículos")
-        st.info("Aqui você pode ver se o seu veículo já foi agendado ou concluído pela oficina.")
         df_status = pd.read_sql("SELECT prefixo, data_solicitacao as data, status, descricao FROM chamados ORDER BY id DESC", engine)
         st.dataframe(df_status, use_container_width=True, hide_index=True)
 
@@ -256,8 +221,6 @@ else:
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
-        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
-        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now())
@@ -269,7 +232,7 @@ else:
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, :tu, 'Direto')"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i})
                     conn.commit()
-                st.success("✅ Serviço cadastrado!"); st.rerun()
+                st.success("✅ Cadastrado!"); st.rerun()
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC, id DESC", engine)
         if not df_lista.empty:
@@ -290,7 +253,6 @@ else:
 
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
-        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' ORDER BY id DESC", engine)
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
@@ -304,29 +266,16 @@ else:
                         for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem) VALUES (:dt, :ex, :pr, '00:00', '00:00', :ds, :ar, 'Não definido', :ic, 'Chamado')"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id']})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+                        conn.commit(); st.success("✅ Processados!"); del st.session_state.df_ap_work; st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
-        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
-        c1, c2 = st.columns(2)
         df_ind = pd.read_sql("SELECT area, realizado FROM tarefas", engine)
-        with c1:
-            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
-        with c2: 
-            if not df_ind.empty:
+        if not df_ind.empty:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
+            with c2: 
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
                 st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_VERDE)
-                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
-        st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
-        query_lead = "SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True"
-        df_lead = pd.read_sql(query_lead, engine)
-        if not df_lead.empty:
-            df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
-            df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
-            col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias"); st.caption("🔍 Média entre o chamado e a entrega.")
-            with col_m2: df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index(); st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
-        else: st.warning("Dados de Lead Time ainda não disponíveis.")
