@@ -75,11 +75,11 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 pdf.set_font("Arial", "B", 10); pdf.set_fill_color(235, 235, 235)
                 pdf.cell(190, 7, f" Area: {area}", ln=True, fill=True)
                 
-                # Cabeçalho da Tabela
+                # Cabeçalho da Tabela no PDF
                 pdf.set_font("Arial", "B", 8); pdf.set_text_color(100)
                 pdf.cell(20, 6, "Prefixo", 1); pdf.cell(30, 6, "Executor", 1); pdf.cell(40, 6, "Disponibilidade", 1); pdf.cell(100, 6, "Descricao", 1, ln=True)
                 
-                # Linhas da Tabela
+                # Linhas da Tabela no PDF
                 pdf.set_font("Arial", "", 7); pdf.set_text_color(0)
                 for _, row in df_area.iterrows():
                     disp = f"{row['inicio_disp']} - {row['fim_disp']}"
@@ -192,7 +192,7 @@ else:
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços.")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços e horários.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -203,18 +203,22 @@ else:
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_Ted_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_Ted_{p_sel[0]}.xlsx")
             with st.form("form_agenda"):
-                btn_salvar = st.form_submit_button("💾 Salvar Tudo")
+                btn_salvar = st.form_submit_button("💾 Salvar Tudo (OK e Horários)")
                 for d in sorted(df_f['data'].unique(), reverse=True):
                     st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                     for area in ORDEM_AREAS:
                         df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
-                            st.data_editor(df_area_f[['realizado', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'turno', 'descricao', 'id', 'id_chamado']], 
-                                column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "inicio_disp": "Início", "fim_disp": "Fim", "id": None, "id_chamado": None}, 
+                            # AJUSTE DE ALINHAMENTO: OK | Prefixo | Início | Fim | Executor | Descrição
+                            st.data_editor(df_area_f[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id', 'id_chamado']], 
+                                column_config={
+                                    "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                    "inicio_disp": "Início",
+                                    "fim_disp": "Fim",
+                                    "id": None, "id_chamado": None
+                                }, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
-                
-                # --- AJUSTE NA FÓRMULA DE SALVAMENTO ---
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
@@ -222,15 +226,14 @@ else:
                                 dt_r, ar_r = key.split("_")[2], key.split("_")[3]
                                 df_rows = df_f[(df_f['data'].astype(str) == dt_r) & (df_f['area'] == ar_r)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
-                                    rid = int(df_rows.iloc[idx]['id'])
-                                    # Grava cada coluna alterada (OK, Início, Fim, etc)
+                                    row_data = df_rows.iloc[idx]; rid = int(row_data['id'])
+                                    # FÓRMULA DE SALVAMENTO CORRIGIDA: Atualiza todas as colunas editadas
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                                        # Se marcar OK, encerra o chamado vinculado
                                         if col == 'realizado' and val is True:
-                                            id_ch = df_rows.iloc[idx]['id_chamado']
+                                            id_ch = row_data['id_chamado']
                                             if id_ch: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
-                    conn.commit(); st.success("✅ Alterações salvas!"); st.rerun()
+                    conn.commit(); st.success("✅ Todas as alterações foram salvas!"); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
@@ -278,7 +281,7 @@ else:
                 df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); 
                 df_p['Inicio'] = "08:00"; df_p['Fim'] = "10:00"; df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
-            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
+            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
