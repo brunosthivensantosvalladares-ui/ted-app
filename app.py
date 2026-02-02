@@ -17,59 +17,35 @@ COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL ---
+# --- CSS PARA UNIDADE VISUAL E BOTÃO MENU ---
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #f8f9fa; }}
+    
+    /* Botões Azul Ted */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
+    
+    /* Estilo da Barra Lateral */
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
+
+    /* ESCONDER O BOTÃO ORIGINAL DO STREAMLIT */
+    button[data-testid="stSidebarCollapseControl"], 
+    header[data-testid="stHeader"] button {{
+        display: none !important;
+    }}
     
-    /* Estilo que o JavaScript vai aplicar no botão encontrado */
-    .menu-custom-btn {{
-        background-color: {COR_AZUL} !important;
-        color: white !important;
-        border-radius: 0 10px 10px 0 !important;
-        width: 100px !important;
-        height: 38px !important;
-        position: fixed !important;
-        top: 5px !important;
-        left: 0 !important;
-        z-index: 999999 !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        font-weight: bold !important;
-        font-family: sans-serif !important;
-        font-size: 14px !important;
-        border: none !important;
+    /* ESTILO PARA O NOSSO BOTÃO DE MENU CUSTOMIZADO */
+    .custom-menu-container {{
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 1000000;
     }}
     </style>
 """, unsafe_allow_html=True)
-
-# --- SCRIPT PARA FORÇAR O BOTÃO "MENU" ---
-st.components.v1.html(f"""
-    <script>
-    function fixMenu() {{
-        // Procura o botão pelo ícone de abertura da sidebar
-        const buttons = window.parent.document.querySelectorAll('button');
-        buttons.forEach(btn => {{
-            const aria = btn.getAttribute('aria-label');
-            if (aria === "Open sidebar" || aria === "Abrir barra lateral") {{
-                if (!btn.innerText.includes("MENU")) {{
-                    btn.classList.add("menu-custom-btn");
-                    btn.innerHTML = '<span>MENU</span>';
-                    btn.style.display = "flex";
-                }}
-            }}
-        }});
-    }}
-    // Executa a cada 1 segundo para garantir que o botão seja capturado após o login
-    setInterval(fixMenu, 1000);
-    </script>
-""", height=0)
 
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
