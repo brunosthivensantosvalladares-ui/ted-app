@@ -285,7 +285,7 @@ else:
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
                 df_p['Executor'] = "Pendente"; df_p['Area_Destino'] = "Mecânica"; df_p['Data_Programada'] = datetime.now().date(); 
-                df_p['Inicio'] = "00:00"; df_p['Fim'] = "00:00"; df_p['Aprovar'] = False
+                df_p['Inicio'] = "08:00"; df_p['Fim'] = "10:00"; df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
             ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos"):
