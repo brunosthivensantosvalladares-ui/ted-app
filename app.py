@@ -192,7 +192,7 @@ else:
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        st.info("💡 **Aviso:** Marque o campo 'OK' e clique em 'Salvar Tudo' para concluir os serviços e horários.")
+        st.info("💡 **Aviso:** Marque o campo 'OK' e preencha os horários. Clique em 'Salvar Tudo' para gravar.")
         df_a = pd.read_sql("SELECT * FROM tarefas ORDER BY data DESC", engine)
         hoje, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
@@ -210,7 +210,8 @@ else:
                         df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
-                            # AJUSTE DE ALINHAMENTO: OK | Prefixo | Início | Fim | Executor | Descrição
+                            
+                            # --- AJUSTE DE ALINHAMENTO: OK | Prefixo | Início | Fim | Executor | Descrição ---
                             st.data_editor(df_area_f[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id', 'id_chamado']], 
                                 column_config={
                                     "realizado": st.column_config.CheckboxColumn("OK", width="small"),
@@ -219,6 +220,8 @@ else:
                                     "id": None, "id_chamado": None
                                 }, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
+                
+                # --- AJUSTE NA FÓRMULA DE SALVAMENTO ---
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
@@ -227,9 +230,10 @@ else:
                                 df_rows = df_f[(df_f['data'].astype(str) == dt_r) & (df_f['area'] == ar_r)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     row_data = df_rows.iloc[idx]; rid = int(row_data['id'])
-                                    # FÓRMULA DE SALVAMENTO CORRIGIDA: Atualiza todas as colunas editadas
+                                    # Grava cada coluna alterada individualmente
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                                        # Se marcar realizado, atualiza status do chamado
                                         if col == 'realizado' and val is True:
                                             id_ch = row_data['id_chamado']
                                             if id_ch: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
