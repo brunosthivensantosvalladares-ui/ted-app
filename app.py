@@ -209,16 +209,17 @@ else:
                         if not df_area_f.empty:
                             st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                             
-                            # --- ALINHAMENTO DAS COLUNAS SOLICITADO ---
+                            # --- ALINHAMENTO DAS COLUNAS: OK | Prefixo | Início | Fim | Executor | Descrição ---
                             st.data_editor(df_area_f[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id', 'id_chamado']], 
                                 column_config={
                                     "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                    "inicio_disp": "Início", "fim_disp": "Fim",
+                                    "inicio_disp": "Início",
+                                    "fim_disp": "Fim",
                                     "id": None, "id_chamado": None
                                 }, 
                                 hide_index=True, use_container_width=True, key=f"ed_ted_{d}_{area}")
                 
-                # --- FÓRMULA DE SALVAMENTO AJUSTADA ---
+                # --- FÓRMULA DE SALVAMENTO REFORÇADA ---
                 if btn_salvar:
                     with engine.connect() as conn:
                         for key in st.session_state.keys():
@@ -227,11 +228,13 @@ else:
                                 df_rows = df_f[(df_f['data'].astype(str) == dt_r) & (df_f['area'] == ar_r)]
                                 for idx, changes in st.session_state[key]["edited_rows"].items():
                                     row_data = df_rows.iloc[idx]; rid = int(row_data['id'])
+                                    # Grava todas as colunas alteradas (OK, Horários, etc)
                                     for col, val in changes.items():
                                         conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                                        # Proteção contra ValueError no id_chamado
                                         if col == 'realizado' and val is True:
                                             id_ch = row_data['id_chamado']
-                                            if id_ch and pd.notnull(id_ch): # Proteção contra erro de valor vazio
+                                            if id_ch and pd.notnull(id_ch):
                                                 try:
                                                     conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(id_ch)})
                                                 except: pass
