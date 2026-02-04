@@ -13,12 +13,13 @@ LOGO_URL = "https://i.postimg.cc/130qmhM1/logo.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
-# PALETA DE CORES AJUSTADA CONFORME LOGO (Azul Profundo e Verde Água/Vibrante)
-COR_AZUL = "#1b224c"  # Azul escuro institucional
-COR_VERDE = "#31ad64" # Verde água vibrante da logo
+# PALETA DE CORES EXTRAÍDA FIELMENTE DO LOGOTIPO U2T
+COR_AZUL = "#1b224c"  # Azul Marinho Profundo do 'U'
+COR_VERDE = "#31ad64" # Verde Esmeralda do '2T'
 COR_FUNDO = "#f4f7f6"
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
+# Restaurado ícone de martelo e chave conforme solicitado
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
 # --- CSS PARA UNIDADE VISUAL ---
@@ -115,9 +116,8 @@ if not st.session_state["logado"]:
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                     import time
                     with st.spinner(""):
-                        # ANIMAÇÃO PARA "UP 2 TODAY" COM CORES DO LOGO
-                        for t in ["Up", "Up 2", "Up 2 T", "Up 2 Tod", "Up 2 Toda", "Up 2 Today"]:
-                            # 'Up' fica em Azul, o resto em Verde
+                        # ANIMAÇÃO: LETRAS MAIÚSCULAS COM CORES DO LOGOTIPO (UP AZUL, RESTANTE VERDE)
+                        for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODA", "UP 2 TODAY"]:
                             placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:2]}</span><span style='color: {COR_VERDE};'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                             time.sleep(0.05)
                     st.session_state["logado"], st.session_state["perfil"] = True, ("admin" if user != "motorista" else "motorista")
@@ -230,7 +230,7 @@ else:
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
                         )
 
-                        # LOGICA DE SALVAMENTO AUTOMÁTICO
+                        # LOGICA DE SALVAMENTO AUTOMÁTICO (TRIGGER)
                         if not edited_df.equals(df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
