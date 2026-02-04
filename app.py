@@ -67,16 +67,16 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf = FPDF()
     pdf.add_page()
     
-    # --- CABEÇALHO COM MARCA U2T (AJUSTADO: LETRAS PRÓXIMAS) ---
+    # --- CABEÇALHO COM MARCA U2T (LETRAS APROXIMADAS) ---
     pdf.set_font("Arial", "B", 22)
     pdf.set_text_color(27, 34, 76) # Azul Logo
-    pdf.cell(8, 10, "U", ln=0)     # Célula estreita para aproximar
+    pdf.cell(6, 10, "U", ln=0)     # Largura mínima para colar
     pdf.set_text_color(49, 173, 100) # Verde Logo
     pdf.cell(40, 10, "2T", ln=0)
     
     pdf.set_font("Arial", "I", 8)
     pdf.set_text_color(120, 120, 120)
-    pdf.cell(142, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=1, align="R")
+    pdf.cell(144, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=1, align="R")
     
     pdf.set_font("Arial", "B", 14)
     pdf.set_text_color(27, 34, 76)
@@ -98,7 +98,7 @@ def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
                 pdf.set_font("Arial", "B", 9); pdf.set_text_color(49, 173, 100)
                 pdf.cell(190, 7, f" Setor: {area}", ln=True)
                 
-                # Títulos da Tabela (RESTAURADO PARA CINZA)
+                # Títulos da Tabela (Restaurado para Cinza)
                 pdf.set_font("Arial", "B", 8); pdf.set_text_color(50); pdf.set_fill_color(230, 230, 230)
                 pdf.cell(20, 6, "Prefixo", 1, 0, 'C', True)
                 pdf.cell(35, 6, "Executor", 1, 0, 'C', True)
@@ -134,7 +134,7 @@ if not st.session_state["logado"]:
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                     import time
                     with st.spinner(""):
-                        # ANIMAÇÃO: LETRAS MAIÚSCULAS COM CORES DO LOGOTIPO (UP AZUL, RESTANTE VERDE)
+                        # ANIMAÇÃO: MAIÚSCULAS COM CORES DO LOGOTIPO (UP AZUL, RESTANTE VERDE)
                         for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODA", "UP 2 TODAY"]:
                             placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:2]}</span><span style='color: {COR_VERDE};'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                             time.sleep(0.05)
