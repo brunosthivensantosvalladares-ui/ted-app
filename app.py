@@ -9,7 +9,7 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Up 2 Today"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-LOGO_URL = "https://i.postimg.cc/130qmhM1/logo.png"
+LOGO_URL = "https://i.postimg.cc/9MHLwp26/logo-png.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
@@ -115,7 +115,7 @@ if not st.session_state["logado"]:
                     if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                     import time
                     with st.spinner(""):
-                        # ANIMAÇÃO PARA "UP 2 TODAY"
+                        # ANIMAÇÃO COM AS CORES DO LOGOTIPO
                         for t in ["Up", "Up 2", "Up 2 T", "Up 2 Tod", "Up 2 Toda", "Up 2 Today"]:
                             placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:2]}</span><span style='color: {COR_VERDE};'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                             time.sleep(0.05)
@@ -218,7 +218,7 @@ else:
                         
                         df_editor_base = df_area_f.set_index('id')
                         
-                        # Alinhamento solicitado: OK | Prefixo | Início | Fim | Executor | Descrição
+                        # Alinhamento: OK | Prefixo | Início | Fim | Executor | Descrição
                         edited_df = st.data_editor(
                             df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
@@ -229,7 +229,7 @@ else:
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
                         )
 
-                        # LOGICA DE SALVAMENTO AUTOMÁTICO (TRIGGER)
+                        # SALVAMENTO AUTOMÁTICO
                         if not edited_df.equals(df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
