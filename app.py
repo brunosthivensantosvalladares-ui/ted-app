@@ -12,7 +12,11 @@ SLOGAN = "Seu Controle. Nossa Prioridade."
 LOGO_URL = "https://i.postimg.cc/9MHLwp26/logo-png.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
-COR_AZUL, COR_VERDE = "#3282b8", "#8ac926"
+
+# PALETA DE CORES AJUSTADA CONFORME LOGO (Azul Profundo e Verde Água/Vibrante)
+COR_AZUL = "#1a508b"  # Azul escuro institucional
+COR_VERDE = "#00d1b2" # Verde água vibrante da logo
+COR_FUNDO = "#f4f7f6"
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
@@ -20,15 +24,18 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 # --- CSS PARA UNIDADE VISUAL ---
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: #f8f9fa; }}
-    /* Botão Primário (Azul Ted) */
+    .stApp {{ background-color: {COR_FUNDO}; }}
+    /* Botão Primário (Identidade Up 2 Today) */
     .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
     /* Botão Secundário (Inativo) */
     .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
     
     [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
-    div[data-testid="stRadio"] > div {{ background-color: #f1f3f5; padding: 10px; border-radius: 10px; }}
+    div[data-testid="stRadio"] > div {{ background-color: #ffffff; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
+    
+    /* Estilização de métricas para combinar com a logo */
+    [data-testid="stMetricValue"] {{ color: {COR_AZUL}; font-weight: bold; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -59,7 +66,7 @@ def to_excel_native(df):
 def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 16); pdf.set_text_color(50, 130, 184)
+    pdf.set_font("Arial", "B", 16); pdf.set_text_color(26, 80, 139)
     pdf.cell(190, 10, f"Relatorio de Manutencao - {NOME_SISTEMA}", ln=True, align="C")
     pdf.set_font("Arial", "", 10); pdf.set_text_color(0, 0, 0)
     pdf.cell(190, 10, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
@@ -199,8 +206,8 @@ else:
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
-            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
-            with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
+            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_{NOME_SISTEMA}.pdf")
+            with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_{NOME_SISTEMA}.xlsx")
             
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
@@ -211,7 +218,7 @@ else:
                         
                         df_editor_base = df_area_f.set_index('id')
                         
-                        # Alinhamento: OK | Prefixo | Início | Fim | Executor | Descrição
+                        # Alinhamento solicitado: OK | Prefixo | Início | Fim | Executor | Descrição
                         edited_df = st.data_editor(
                             df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
@@ -222,7 +229,7 @@ else:
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
                         )
 
-                        # SALVAMENTO AUTOMÁTICO
+                        # LOGICA DE SALVAMENTO AUTOMÁTICO (TRIGGER)
                         if not edited_df.equals(df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
