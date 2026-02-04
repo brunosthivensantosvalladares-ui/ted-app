@@ -9,7 +9,7 @@ from fpdf import FPDF
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Up 2 Today"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-LOGO_URL = "https://i.postimg.cc/9MHLwp26/logo-png.png"
+LOGO_URL = "https://i.postimg.cc/130qmhM1/logo.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
