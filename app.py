@@ -175,13 +175,13 @@ if not st.session_state["logado"]:
                     
                     # 1. VERIFICAÇÃO DE USUÁRIOS MASTER (ESTÁTICOS)
                     masters = {
-                        "bruno": {"pw": "master789", "perfil": "admin", "empresa": "U2T_MATRIZ"},
-                        "motorista": {"pw": "12345", "perfil": "motorista", "empresa": "U2T_MATRIZ"}
+                        "bruno": {"pw": "master789", "perfil": "admin", "empresa": "U2T_MATRIZ", "login_original": "bruno"},
+                        "motorista": {"pw": "12345", "perfil": "motorista", "empresa": "U2T_MATRIZ", "login_original": "motorista_padrao"}
                     }
                     
                     logado_agora = False
                     if user_input in masters and masters[user_input]["pw"] == pw_input:
-                        st.session_state.update({"logado": True, "perfil": masters[user_input]["perfil"], "empresa": masters[user_input]["empresa"]})
+                        st.session_state.update({"logado": True, "perfil": masters[user_input]["perfil"], "empresa": masters[user_input]["empresa"], "usuario_ativo": masters[user_input]["login_original"]})
                         logado_agora = True
                     else:
                         # 2. VERIFICAÇÃO NO BANCO DE DADOS (CLIENTES SAAS - AGORA ACEITA E-MAIL OU NOME)
@@ -198,7 +198,7 @@ if not st.session_state["logado"]:
                                 if res[3] < hoje and res[4] != 'ativo':
                                     st.error(f"⚠️ O período de teste da empresa '{res[0]}' expirou em {res[3].strftime('%d/%m/%Y')}. Entre em contato para ativar.")
                                 else:
-                                    st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0]})
+                                    st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
                                     logado_agora = True
                             else:
                                 # 3. VERIFICAÇÃO DE USUÁRIOS DA EQUIPE (MOTORISTAS)
@@ -206,7 +206,7 @@ if not st.session_state["logado"]:
                                     SELECT login, senha, perfil, empresa_id FROM usuarios WHERE LOWER(login) = :u
                                 """), {"u": user_input}).fetchone()
                                 if u_equipe and u_equipe[1] == pw_input:
-                                    st.session_state.update({"logado": True, "perfil": u_equipe[2], "empresa": u_equipe[3]})
+                                    st.session_state.update({"logado": True, "perfil": u_equipe[2], "empresa": u_equipe[3], "usuario_ativo": u_equipe[0]})
                                     logado_agora = True
                     
                     if logado_agora:
@@ -307,8 +307,10 @@ else:
             p, d = st.text_input("Prefixo do Veículo"), st.text_area("Descrição do Problema")
             if st.form_submit_button("Enviar para Oficina"):
                 if p and d:
+                    # Captura o login de quem está logado para salvar no chamado
+                    nome_motorista = st.session_state.get("usuario_ativo", "Motorista")
                     with engine.connect() as conn:
-                        conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status, empresa_id) VALUES ('motorista', :p, :d, :dt, 'Pendente', :eid)"), {"p": p, "d": d, "dt": str(datetime.now().date()), "eid": emp_id})
+                        conn.execute(text("INSERT INTO chamados (motorista, prefixo, descricao, data_solicitacao, status, empresa_id) VALUES (:m, :p, :d, :dt, 'Pendente', :eid)"), {"m": nome_motorista, "p": p, "d": d, "dt": str(datetime.now().date()), "eid": emp_id})
                         conn.commit()
                         st.success("✅ Solicitação enviada com sucesso! Acompanhe o status na aba ao lado.")
 
@@ -416,12 +418,30 @@ else:
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
-        df_p = pd.read_sql(text("SELECT id, data_solicitacao, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
+        # ALTERADO: Agora seleciona também a coluna 'motorista' para exibir na tabela
+        df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
-                df_p['Executor'], df_p['Area_Destino'], df_p['Data_Programada'], df_p['Inicio'], df_p['Fim'], df_p['Aprovar'] = "Pendente", "Mecânica", datetime.now().date(), "08:00", "10:00", False
+                # ALTERADO: Executor inicia vazio ("") e horários iniciam em "00:00"
+                df_p['Executor'], df_p['Area_Destino'], df_p['Data_Programada'], df_p['Inicio'], df_p['Fim'], df_p['Aprovar'] = "", "Mecânica", datetime.now().date(), "00:00", "00:00", False
                 st.session_state.df_ap_work = df_p
-            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
+            
+            # ALTERADO: Configuração da coluna 'motorista' adicionada
+            ed_c = st.data_editor(
+                st.session_state.df_ap_work, 
+                hide_index=True, 
+                use_container_width=True, 
+                column_config={
+                    "data_solicitacao": "Aberto em", 
+                    "motorista": "Solicitante", # Exibe o nome do motorista
+                    "Data_Programada": st.column_config.DateColumn("Data Programada"), 
+                    "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), 
+                    "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), 
+                    "id": None
+                }, 
+                key="editor_chamados"
+            )
+            
             if st.button("Processar Agendamentos"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
