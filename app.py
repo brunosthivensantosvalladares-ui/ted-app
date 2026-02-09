@@ -201,7 +201,7 @@ if not st.session_state["logado"]:
                                     st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
                                     logado_agora = True
                             else:
-                                # 3. VERIFICAÇÃO DE USUÁRIOS DA EQUIPE (MOTORISTAS)
+                                # 3. VERIFICAÇÃO DE USUÁRIOS DA EQUIPE (MOTORISTAS OU OUTROS ADMINS)
                                 u_equipe = conn.execute(text("""
                                     SELECT login, senha, perfil, empresa_id FROM usuarios WHERE LOWER(login) = :u
                                 """), {"u": user_input}).fetchone()
@@ -340,7 +340,8 @@ else:
             st.warning("⚠️ O banco de dados está iniciando. Aguarde alguns segundos.")
             st.stop()
 
-        st.info("💡 **Aviso:** O salvamento agora é automático ao editar horários ou marcar OK.")
+        # INSTRUÇÃO INTUITIVA PARA LOGÍSTICA
+        st.success("✍️ **Dica para Logística:** Clique diretamente nas colunas de **Início**, **Fim** ou **Executor** para preencher a disponibilidade. O sistema salva automaticamente ao sair da célula.")
         
         # 1. Carrega os dados
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
@@ -391,11 +392,15 @@ else:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
                         
+                        # Colunas de Início/Fim renomeadas para preenchimento intuitivo
                         edited_df = st.data_editor(
                             df_editor_base[['realizado', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
                                 "realizado": st.column_config.CheckboxColumn("OK", width="small"),
                                 "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
+                                "inicio_disp": st.column_config.TextColumn("Início (Preencher)", help="Digite o horário de início"),
+                                "fim_disp": st.column_config.TextColumn("Fim (Preencher)", help="Digite o horário de término"),
+                                "executor": st.column_config.TextColumn("Executor", help="Nome do mecânico responsável"),
                                 "id_chamado": None
                             }, 
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
@@ -549,17 +554,18 @@ else:
         
         with st.expander("➕ Cadastrar Novo Integrante", expanded=True):
             with st.form("form_novo_usuario", clear_on_submit=True):
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns([1, 1, 1]) # Adicionada terceira coluna para o Perfil
                 novo_u = col1.text_input("Login (Ex: pedro.motorista)")
                 nova_s = col2.text_input("Senha de Acesso", type="password")
+                novo_p = col3.selectbox("Cargo/Perfil", ["motorista", "admin"]) # Campo de seleção de cargo
                 if st.form_submit_button("Criar Acesso"):
                     if novo_u and nova_s:
                         try:
                             with engine.connect() as conn:
-                                conn.execute(text("INSERT INTO usuarios (login, senha, empresa_id) VALUES (:u, :s, :eid)"), 
-                                             {"u": novo_u.lower(), "s": nova_s, "eid": emp_id})
+                                conn.execute(text("INSERT INTO usuarios (login, senha, perfil, empresa_id) VALUES (:u, :s, :p, :eid)"), 
+                                             {"u": novo_u.lower(), "s": nova_s, "p": novo_p, "eid": emp_id})
                                 conn.commit()
-                            st.success(f"✅ Acesso para '{novo_u}' criado com sucesso!")
+                            st.success(f"✅ Acesso para '{novo_u}' ({novo_p}) criado com sucesso!")
                             time_module.sleep(1.5)
                             st.rerun()
                         except:
