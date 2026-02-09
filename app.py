@@ -342,6 +342,7 @@ else:
 
         # INSTRUÇÃO INTUITIVA PARA LOGÍSTICA
         st.success("✍️ **Dica para Logística:** Clique diretamente nas colunas de **Início** ou **Fim** para preencher a disponibilidade. O sistema salva automaticamente ao sair da célula.")
+        st.success("✍️ **Dica para o PCM:** Clique diretamente nas colunas de **Área** ou **Executor** para alterar/definir, caso tenha esquecido durante a aprovação do chamado. O sistema salva automaticamente ao sair da célula.")
         
         # 1. Carrega os dados
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
