@@ -416,7 +416,13 @@ else:
                     conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
-        st.subheader("📥 Aprovação de Chamados")
+        c_tit, c_refresh = st.columns([0.8, 0.2])
+        with c_tit: st.subheader("📥 Aprovação de Chamados")
+        with c_refresh:
+            if st.button("🔄 Atualizar Lista", use_container_width=True):
+                if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
+                st.rerun()
+                
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         
         # 1. Busca os chamados pendentes (incluindo o motorista/solicitante)
@@ -440,7 +446,7 @@ else:
                 use_container_width=True, 
                 column_config={
                     "data_solicitacao": "Aberto em", 
-                    "motorista": "Solicitante", # Mostra quem abriu
+                    "motorista": "Solicitante", 
                     "Data_Programada": st.column_config.DateColumn("Data Programada"), 
                     "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), 
                     "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), 
@@ -449,7 +455,7 @@ else:
                 key="editor_chamados"
             )
             
-            if st.button("Processar Agendamentos"):
+            if st.button("Processar Agendamentos", type="primary"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
                     with engine.connect() as conn:
