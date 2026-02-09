@@ -341,42 +341,68 @@ else:
             st.stop()
 
         st.info("💡 **Aviso:** O salvamento agora é automático ao editar horários ou marcar OK.")
+        
+        # Busca os dados originais
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
+        
         c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje_input, amanha], key="dt_filter")
+        
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
-            df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])]
+            df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
+            
+            # --- LÓGICA DE ORDENAÇÃO POR TURNO ---
+            ordem_turno_map = {"Não definido": 0, "Dia": 1, "Noite": 2}
+            df_f['turno_idx'] = df_f['turno'].map(ordem_turno_map).fillna(0)
+            
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
             
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                 for area in ORDEM_AREAS:
-                    df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)]
+                    # Filtra por área e aplica a ordenação pelo índice do turno
+                    df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
+                    
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
                         
+                        # Coluna de Turno adicionada na visualização
                         edited_df = st.data_editor(
-                            df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
+                            df_editor_base[['realizado', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
                                 "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
                                 "id_chamado": None
                             }, 
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
                         )
 
-                        if not edited_df.equals(df_editor_base[['realizado', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
+                        if not edited_df.equals(df_editor_base[['realizado', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
-                                    conn.execute(text("UPDATE tarefas SET realizado = :r, prefixo = :p, inicio_disp = :i, fim_disp = :f, executor = :ex, descricao = :ds WHERE id = :id"), {"r": bool(row['realizado']), "p": str(row['prefixo']), "i": str(row['inicio_disp']), "f": str(row['fim_disp']), "ex": str(row['executor']), "ds": str(row['descricao']), "id": int(row_id)})
+                                    conn.execute(text("""
+                                        UPDATE tarefas SET 
+                                        realizado = :r, turno = :t, prefixo = :p, 
+                                        inicio_disp = :i, fim_disp = :f, 
+                                        executor = :ex, descricao = :ds 
+                                        WHERE id = :id
+                                    """), {
+                                        "r": bool(row['realizado']), "t": str(row['turno']), 
+                                        "p": str(row['prefixo']), "i": str(row['inicio_disp']), 
+                                        "f": str(row['fim_disp']), "ex": str(row['executor']), 
+                                        "ds": str(row['descricao']), "id": int(row_id)
+                                    })
                                     if row['realizado'] and pd.notnull(row['id_chamado']):
                                         try: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(row['id_chamado'])})
                                         except: pass
                                 conn.commit()
                                 st.toast("Alteração salva!", icon="✅")
+                                time_module.sleep(0.5)
+                                st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
