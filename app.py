@@ -418,22 +418,29 @@ else:
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Aprovação de Chamados")
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
-        # ALTERADO: Agora seleciona também a coluna 'motorista' para exibir na tabela
+        
+        # 1. Busca os chamados pendentes (incluindo o motorista/solicitante)
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
+        
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
-                # ALTERADO: Executor inicia vazio ("") e horários iniciam em "00:00"
-                df_p['Executor'], df_p['Area_Destino'], df_p['Data_Programada'], df_p['Inicio'], df_p['Fim'], df_p['Aprovar'] = "", "Mecânica", datetime.now().date(), "00:00", "00:00", False
+                # 2. Configura valores padrão: Executor vazio e disponibilidade zerada
+                df_p['Executor'] = ""
+                df_p['Area_Destino'] = "Mecânica"
+                df_p['Data_Programada'] = datetime.now().date()
+                df_p['Inicio'] = "00:00"
+                df_p['Fim'] = "00:00"
+                df_p['Aprovar'] = False
                 st.session_state.df_ap_work = df_p
             
-            # ALTERADO: Configuração da coluna 'motorista' adicionada
+            # 3. Exibe a tabela com o Solicitante visível
             ed_c = st.data_editor(
                 st.session_state.df_ap_work, 
                 hide_index=True, 
                 use_container_width=True, 
                 column_config={
                     "data_solicitacao": "Aberto em", 
-                    "motorista": "Solicitante", # Exibe o nome do motorista
+                    "motorista": "Solicitante", # Mostra quem abriu
                     "Data_Programada": st.column_config.DateColumn("Data Programada"), 
                     "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), 
                     "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), 
@@ -449,7 +456,10 @@ else:
                         for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem, empresa_id) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, 'Não definido', :ic, 'Chamado', :eid)"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ti": r['Inicio'], "tf": r['Fim'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id'], "eid": emp_id})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+                        conn.commit()
+                    st.success("✅ Agendamentos processados!")
+                    del st.session_state.df_ap_work
+                    st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
@@ -511,13 +521,12 @@ else:
         
         if not df_users.empty:
             df_users['Exc'] = False
-            # EDITOR DE DADOS PROFISSIONAL PARA A EQUIPE
             ed_users = st.data_editor(
                 df_users[['Exc', 'login', 'senha', 'cargo', 'id']], 
                 hide_index=True, 
                 use_container_width=True,
                 column_config={
-                    "id": None, # Esconde o ID
+                    "id": None,
                     "Exc": st.column_config.CheckboxColumn("Excluir", width="small"),
                     "senha": st.column_config.TextColumn("Senha", help="Altere a senha aqui e salve"),
                     "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])
@@ -525,7 +534,6 @@ else:
                 key="editor_equipe"
             )
 
-            # LÓGICA DE EXCLUSÃO
             if st.button("🗑️ Excluir Selecionados da Equipe"):
                 usuarios_para_deletar = ed_users[ed_users['Exc'] == True]['id'].tolist()
                 if usuarios_para_deletar:
@@ -537,7 +545,6 @@ else:
                     time_module.sleep(1)
                     st.rerun()
 
-            # LÓGICA DE EDIÇÃO (SALVAMENTO AUTOMÁTICO AO CLICAR FORA)
             if st.session_state.editor_equipe["edited_rows"]:
                 with engine.connect() as conn:
                     for idx, changes in st.session_state.editor_equipe["edited_rows"].items():
