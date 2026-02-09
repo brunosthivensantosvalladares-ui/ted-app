@@ -342,16 +342,33 @@ else:
 
         st.info("💡 **Aviso:** O salvamento agora é automático ao editar horários ou marcar OK.")
         
-        # Busca os dados originais
+        # 1. Carrega os dados
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         
-        c_per, c_pdf, c_xls = st.columns([0.6, 0.2, 0.2])
+        # 2. LINHA DE FILTROS (Data, Área e Turno)
+        c_per, c_area, c_turno = st.columns([0.4, 0.3, 0.3])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje_input, amanha], key="dt_filter")
         
+        # Opções de filtro dinâmicas
+        opcoes_area = ["Todas"] + ORDEM_AREAS
+        opcoes_turno = ["Todos"] + LISTA_TURNOS
+        
+        with c_area: f_area = st.selectbox("Filtrar Área", opcoes_area)
+        with c_turno: f_turno = st.selectbox("Filtrar Turno", opcoes_turno)
+        
+        # 3. Colunas para Botões de Download
+        c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
+
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
+            
+            # APLICAÇÃO DOS FILTROS ADICIONAIS
+            if f_area != "Todas":
+                df_f = df_f[df_f['area'] == f_area]
+            if f_turno != "Todos":
+                df_f = df_f[df_f['turno'] == f_turno]
             
             # --- LÓGICA DE ORDENAÇÃO POR TURNO ---
             ordem_turno_map = {"Não definido": 0, "Dia": 1, "Noite": 2}
@@ -362,7 +379,11 @@ else:
             
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
-                for area in ORDEM_AREAS:
+                
+                # Definir áreas a serem exibidas (se filtrar área, mostra apenas ela)
+                areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
+                
+                for area in areas_para_exibir:
                     # Filtra por área e aplica a ordenação pelo índice do turno
                     df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
                     
@@ -370,7 +391,6 @@ else:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
                         
-                        # Coluna de Turno adicionada na visualização
                         edited_df = st.data_editor(
                             df_editor_base[['realizado', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
