@@ -22,7 +22,7 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FORÇAR BRANCO EM BOTÕES, ÍCONES E CALENDÁRIO ---
+# --- CSS PARA FORÇAR BRANCO EM BOTÕES, ÍCONES E INTERIOR DO CALENDÁRIO ---
 st.markdown(f"""
     <style>
     /* Força fundo branco absoluto no app */
@@ -53,15 +53,17 @@ st.markdown(f"""
         border-radius: 8px !important;
     }}
 
-    /* Alvo específico no texto e ícones (olhinho e datas) dentro de botões/widgets */
-    button p, button span, button div, [data-testid="stDateInput"] div {{
+    /* Alvo: Texto e números dentro de botões e seletores de data (incluindo o calendário aberto) */
+    button p, button span, button div, 
+    div[data-baseweb="calendar"] button,
+    div[data-baseweb="calendar"] div {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         opacity: 1 !important;
     }}
 
-    /* FORÇA O ÍCONE DO OLHINHO E ÍCONE DE CALENDÁRIO (SVG) A FICAR BRANCO */
-    button svg, [data-testid="stDateInput"] svg {{
+    /* FORÇA O ÍCONE DO OLHINHO E SETAS DO CALENDÁRIO A FICAR BRANCO */
+    button svg, div[data-baseweb="calendar"] svg {{
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }}
