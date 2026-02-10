@@ -63,12 +63,13 @@ st.markdown(f"""
         opacity: 1 !important;
     }}
 
-    /* AÇÃO ULTRA-AGRESSIVA: OBRIGA QUALQUER ELEMENTO SELECIONADO A FICAR BRANCO */
-    div[data-baseweb="calendar"] [aria-selected="true"] * {{
+    /* AÇÃO DEFINITIVA: OBRIGA OS NÚMEROS SELECIONADOS A FICAREM BRANCO */
+    div[data-baseweb="calendar"] [aria-selected="true"] div,
+    div[data-baseweb="calendar"] [aria-selected="true"] span,
+    div[data-baseweb="calendar"] [aria-selected="true"] {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         fill: #FFFFFF !important;
-        opacity: 1 !important;
     }}
 
     /* LOGO: Azul Marinho no U e Verde no 2T */
