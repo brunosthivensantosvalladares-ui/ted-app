@@ -168,12 +168,10 @@ if not st.session_state["logado"]:
         # ALTERNÂNCIA ENTRE LOGIN E CADASTRO
         aba = st.radio("Selecione uma opção", ["Acessar", "Criar Conta"], horizontal=True, label_visibility="collapsed")
         
-       if aba == "Acessar":
+        if aba == "Acessar":
             with st.container(border=True):
-                # ESTAS DUAS LINHAS ABAIXO SÃO AS QUE SUMIRAM E CAUSARAM O ERRO:
                 user_input = st.text_input("E-mail ou Usuário", key="u_log").lower()
                 pw_input = st.text_input("Senha", type="password", key="p_log")
-                
                 if st.button(f"Acessar Painel {NOME_SISTEMA}", use_container_width=True, type="primary"):
                     engine = get_engine()
                     inicializar_banco()
