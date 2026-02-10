@@ -25,31 +25,29 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 # --- CSS PARA TEMA CLARO FIXO E LOGOTIPO COLORIDO ---
 st.markdown(f"""
     <style>
-    /* Força o fundo branco e ignora o modo escuro do dispositivo */
-    .stApp {{ background-color: #ffffff !important; }}
+    /* Força fundo branco absoluto em todas as camadas */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background-color: #ffffff !important;
+    }}
     
-    /* Garante que os textos e rótulos fiquem em cinza escuro para leitura no branco */
-    h1, h2, h3, h4, h5, h6, p, label, span, div, .stMarkdown {{
+    /* Trava todos os textos em preto/cinza escuro */
+    h1, h2, h3, h4, h5, h6, p, label, span, div, .stMarkdown, [data-testid="stText"] {{
         color: #31333F !important;
+        -webkit-text-fill-color: #31333F !important;
     }}
 
-    /* Estilo fixo do Botão: Fundo Azul Marinho, Letras Brancas e Borda Verde */
-    .stButton>button[kind="primary"] {{ 
-        background-color: {COR_AZUL} !important; 
-        color: white !important; 
-        border-radius: 8px !important; 
+    /* Estilo do Botão: Fundo Azul, Texto Branco fixo */
+    .stButton>button {{
+        background-color: {COR_AZUL} !important;
+        color: #ffffff !important;
+        -webkit-text-fill-color: #ffffff !important;
         border: 2px solid {COR_VERDE} !important;
-        font-weight: bold !important; 
-        width: 100%; 
+        border-radius: 8px !important;
     }}
 
-    /* Classes específicas para proteger as cores do Logo no topo */
-    .logo-u {{ color: {COR_AZUL} !important; font-weight: bold !important; }}
-    .logo-2t {{ color: {COR_VERDE} !important; font-weight: bold !important; }}
-    
-    /* Sidebar e Tabelas fixas no branco */
-    [data-testid="stSidebar"], [data-testid="stHeader"] {{ background-color: #ffffff !important; }}
-    div[data-testid="stMetric"] {{ background-color: #ffffff !important; border-left: 4px solid {COR_VERDE} !important; box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important; }}
+    /* Classes do Logo - Azul Marinho e Verde */
+    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
