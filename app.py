@@ -22,36 +22,59 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS EXPERIMENTAL DE ALTA PRIORIDADE PARA CALENDÁRIO ---
+# --- CSS FINAL DEFINITIVO: BRANCO TOTAL EM ITENS SELECIONADOS ---
 st.markdown(f"""
     <style>
-    /* 1. Manutenção do fundo branco e textos gerais */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
-    p, label, span, div, .stMarkdown {{ color: #31333F !important; -webkit-text-fill-color: #31333F !important; }}
+    /* Força fundo branco absoluto no app */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{
+        background-color: #FFFFFF !important;
+    }}
 
-    /* 2. Centralização Rádio Login */
-    div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; }}
+    /* Textos gerais em cinza escuro para fundo branco */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{
+        color: #31333F !important;
+        -webkit-text-fill-color: #31333F !important;
+    }}
 
-    /* 3. Botões e Logotipo */
-    .stButton>button {{ background-color: #1b224c !important; border: 2px solid #31ad64 !important; border-radius: 8px !important; }}
-    button p, button span, button div, button svg {{ color: #FFFFFF !important; fill: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }}
-    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
-    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
+    /* CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
+    div[data-testid="stRadio"] > div {{
+        display: flex;
+        justify-content: center;
+        background-color: #ffffff;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }}
 
-    /* 4. ATAQUE DIRETO AO CALENDÁRIO (Células de Intervalo e Seleção) */
-    /* Este seletor ataca todas as variações de 'selected' e 'highlighted' do Base Web */
-    [data-baseweb="calendar"] [class*="selected"],
-    [data-baseweb="calendar"] [class*="Highlighted"],
-    [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [aria-selected="true"] * {{
+    /* BOTÕES: Fundo Azul e Borda Verde */
+    button[kind="primary"], button[kind="secondary"], button {{
+        background-color: #1b224c !important;
+        border: 2px solid #31ad64 !important;
+        border-radius: 8px !important;
+    }}
+
+    /* TEXTO BRANCO: Botões, Olhinho e Topo do Calendário */
+    button p, button span, button div, button svg,
+    div[data-baseweb="calendar"] [aria-live="polite"],
+    div[data-baseweb="calendar"] [role="presentation"] svg {{
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 1 !important;
+    }}
+
+    /* AÇÃO DEFINITIVA: OBRIGA OS NÚMEROS SELECIONADOS A FICAREM BRANCO */
+    div[data-baseweb="calendar"] [aria-selected="true"] div,
+    div[data-baseweb="calendar"] [aria-selected="true"] span,
+    div[data-baseweb="calendar"] [aria-selected="true"] {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         fill: #FFFFFF !important;
     }}
-    
-    /* 5. Forçar as setas de navegação (topo do calendário) */
-    [data-baseweb="calendar"] button svg {{ fill: #FFFFFF !important; color: #FFFFFF !important; }}
-    [data-baseweb="calendar"] div[role="presentation"] {{ color: #FFFFFF !important; }}
+
+    /* LOGO: Azul Marinho no U e Verde no 2T */
+    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
