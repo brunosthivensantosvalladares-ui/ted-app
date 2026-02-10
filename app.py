@@ -25,27 +25,28 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 # --- CSS PARA TEMA CLARO FIXO E LOGOTIPO COLORIDO ---
 st.markdown(f"""
     <style>
-    /* Força fundo branco absoluto em todas as camadas */
+    /* Força fundo branco absoluto */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background-color: #ffffff !important;
+        background-color: #FFFFFF !important;
     }}
-    
-    /* Trava todos os textos em preto/cinza escuro */
-    h1, h2, h3, h4, h5, h6, p, label, span, div, .stMarkdown, [data-testid="stText"] {{
+
+    /* Garante visibilidade dos textos em cinza escuro */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{
         color: #31333F !important;
         -webkit-text-fill-color: #31333F !important;
     }}
 
-    /* Estilo do Botão: Fundo Azul, Texto Branco fixo */
+    /* BOTÃO: Fundo Azul, Texto BRANCO FIXO */
     .stButton>button {{
-        background-color: {COR_AZUL} !important;
-        color: #ffffff !important;
-        -webkit-text-fill-color: #ffffff !important;
-        border: 2px solid {COR_VERDE} !important;
+        background-color: #1b224c !important;
+        color: #FFFFFF !important;
+        border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
+        font-weight: bold !important;
+        -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* Classes do Logo - Azul Marinho e Verde */
+    /* LOGO: Azul Marinho no U e Verde no 2T */
     .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
