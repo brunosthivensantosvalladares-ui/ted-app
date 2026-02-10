@@ -22,38 +22,49 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS OTIMIZADO PARA TEMA ESCURO E CLARO (FORÇADO) ---
+# --- CSS PARA FORÇAR TEMA CLARO E CORES ORIGINAIS (FIXO) ---
 st.markdown(f"""
     <style>
-    /* Força o fundo a seguir o tema do sistema (evita o preto absoluto se não for o padrão) */
-    .stApp {{ background-color: transparent !important; }}
+    /* Força o fundo branco em todo o app, ignorando o tema do sistema */
+    .stApp {{ background-color: #ffffff !important; }}
     
-    /* Garante que os rótulos (Labels) fiquem visíveis em qualquer tema */
-    label, p, span, .stMarkdown {{
-        color: inherit !important;
+    /* Garante que os textos fiquem sempre escuros para leitura no fundo branco */
+    h1, h2, h3, h4, h5, h6, p, label, span, .stMarkdown {{
+        color: #31333F !important;
     }}
 
-    /* Botão Primário Up 2 Today com Borda Verde para destaque no Escuro */
+    /* Botão Primário com as cores exatas do logotipo */
     .stButton>button[kind="primary"] {{ 
         background-color: {COR_AZUL} !important; 
         color: white !important; 
-        border: 2px solid {COR_VERDE} !important;
         border-radius: 8px !important; 
+        border: none !important;
         font-weight: bold !important; 
+        width: 100%; 
     }}
-
-    /* Estilização das métricas para não "sumirem" no fundo escuro */
-    div[data-testid="stMetric"] {{
-        background-color: rgba(128, 128, 128, 0.1) !important;
-        border-left: 4px solid {COR_VERDE} !important;
-        border-radius: 8px !important;
+    
+    /* Sidebar sempre branca */
+    [data-testid="stSidebar"] {{ 
+        background-color: #ffffff !important; 
+        border-right: 1px solid #e0e0e0 !important; 
     }}
-
-    /* Cabeçalhos de área */
+    
+    /* Cabeçalhos de área com o Verde e Azul da marca */
     .area-header {{ 
         color: {COR_VERDE} !important; 
         font-weight: bold !important; 
+        font-size: 1.1rem !important; 
         border-left: 5px solid {COR_AZUL} !important; 
+        padding-left: 10px !important; 
+    }}
+
+    /* Estilização de métricas fixa */
+    div[data-testid="stMetric"] {{
+        background-color: #ffffff !important;
+        padding: 8px 12px !important;
+        border-radius: 8px !important;
+        border-left: 4px solid {COR_VERDE} !important;
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.1) !important;
     }}
     </style>
 """, unsafe_allow_html=True)
