@@ -24,27 +24,34 @@ st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", pa
 
 # --- CSS PARA UNIDADE VISUAL ---
 st.markdown(f"""
+st.markdown(f"""
     <style>
     .stApp {{ background-color: {COR_FUNDO}; }}
-    /* Botão Primário (Identidade Up 2 Today) */
-    .stButton>button[kind="primary"] {{ background-color: {COR_AZUL}; color: white; border-radius: 8px; border: none; font-weight: bold; width: 100%; }}
-    /* Botão Secundário (Inativo) */
-    .stButton>button[kind="secondary"] {{ background-color: #e0e0e0; color: #333; border-radius: 8px; border: none; width: 100%; }}
+    /* Botão Primário Adaptativo */
+    .stButton>button[kind="primary"] {{ 
+        background-color: {COR_AZUL}; 
+        color: white !important; 
+        border-radius: 8px; 
+        border: 2px solid {COR_VERDE}; 
+        font-weight: bold; 
+        width: 100%; 
+    }}
+    /* Botão Secundário Adaptativo */
+    .stButton>button[kind="secondary"] {{ border-radius: 8px; width: 100%; }}
     
-    [data-testid="stSidebar"] {{ background-color: #ffffff; border-right: 1px solid #e0e0e0; }}
+    [data-testid="stSidebar"] {{ border-right: 1px solid #e0e0e0; }}
     .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
-    div[data-testid="stRadio"] > div {{ background-color: #ffffff; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
+    div[data-testid="stRadio"] > div {{ padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
     
-    /* Estilização de métricas (CARDS DIMINUÍDOS) */
-    [data-testid="stMetricValue"] {{ color: {COR_AZUL}; font-weight: bold; font-size: 1.6rem !important; }}
-    [data-testid="stMetricLabel"] {{ font-size: 0.85rem !important; }}
+    /* Métricas Adaptativas */
     div[data-testid="stMetric"] {{
-        background-color: #ffffff;
         padding: 8px 12px;
         border-radius: 8px;
         border-left: 4px solid {COR_VERDE};
         box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
     }}
+    /* Borda para formulários no Modo Escuro */
+    [data-testid="stForm"] {{ border: 1px solid {COR_VERDE}; border-radius: 10px; }}
     </style>
 """, unsafe_allow_html=True)
 
