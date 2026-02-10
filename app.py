@@ -22,35 +22,46 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA UNIDADE VISUAL ---
+# --- CSS OTIMIZADO PARA CONTRASTE TOTAL (TEMA CLARO/ESCURO) ---
 st.markdown(f"""
     <style>
-    .stApp {{ background-color: {COR_FUNDO}; }}
-    /* Botão Primário Adaptativo */
+    /* Botão Primário Adaptativo com borda visível */
     .stButton>button[kind="primary"] {{ 
-        background-color: {COR_AZUL}; 
+        background-color: {COR_AZUL} !important; 
         color: white !important; 
+        border: 2px solid {COR_VERDE} !important;
         border-radius: 8px; 
-        border: 2px solid {COR_VERDE}; 
         font-weight: bold; 
         width: 100%; 
     }}
-    /* Botão Secundário Adaptativo */
-    .stButton>button[kind="secondary"] {{ border-radius: 8px; width: 100%; }}
     
-    [data-testid="stSidebar"] {{ border-right: 1px solid #e0e0e0; }}
-    .area-header {{ color: {COR_VERDE}; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
-    div[data-testid="stRadio"] > div {{ padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
-    
+    /* Garante visibilidade das letras nos inputs para temas claros/escuros */
+    input {{
+        color: inherit !important;
+    }}
+
+    /* Ajuste para cabeçalhos de área */
+    .area-header {{ 
+        color: {COR_VERDE}; 
+        font-weight: bold; 
+        font-size: 1.1rem; 
+        border-left: 5px solid {COR_AZUL}; 
+        padding-left: 10px; 
+        margin-top: 20px; 
+    }}
+
     /* Métricas Adaptativas */
     div[data-testid="stMetric"] {{
         padding: 8px 12px;
         border-radius: 8px;
         border-left: 4px solid {COR_VERDE};
-        box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+        background-color: rgba(128, 128, 128, 0.1);
     }}
-    /* Borda para formulários no Modo Escuro */
-    [data-testid="stForm"] {{ border: 1px solid {COR_VERDE}; border-radius: 10px; }}
+    
+    /* Borda de destaque para o formulário de Login */
+    [data-testid="stForm"] {{
+        border: 1px solid {COR_VERDE} !important;
+    }}
     </style>
 """, unsafe_allow_html=True)
 
