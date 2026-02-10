@@ -22,7 +22,7 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL: BRANCO TOTAL EM ITENS SELECIONADOS, ÍCONES E BOTÕES ---
+# --- CSS FINAL DEFINITIVO: BRANCO TOTAL EM ITENS SELECIONADOS ---
 st.markdown(f"""
     <style>
     /* Força fundo branco absoluto no app */
@@ -63,12 +63,11 @@ st.markdown(f"""
         opacity: 1 !important;
     }}
 
-    /* ALVO DEFINITIVO: NÚMEROS SELECIONADOS NO CALENDÁRIO (FIX TOTAL) */
-    div[data-baseweb="calendar"] [aria-selected="true"],
-    div[data-baseweb="calendar"] [aria-selected="true"] div,
-    div[data-baseweb="calendar"] [aria-selected="true"] span {{
+    /* AÇÃO ULTRA-AGRESSIVA: OBRIGA QUALQUER ELEMENTO SELECIONADO A FICAR BRANCO */
+    div[data-baseweb="calendar"] [aria-selected="true"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
+        fill: #FFFFFF !important;
         opacity: 1 !important;
     }}
 
