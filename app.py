@@ -49,6 +49,16 @@ st.markdown(f"""
     /* LOGO: Azul Marinho no U e Verde no 2T */
     .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
+    
+    /* Estilização de métricas fixa */
+    div[data-testid="stMetric"] {{
+        background-color: #ffffff !important;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border-left: 4px solid {COR_VERDE};
+        box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+    }}
+    .area-header {{ color: {COR_VERDE} !important; font-weight: bold; font-size: 1.1rem; border-left: 5px solid {COR_AZUL}; padding-left: 10px; margin-top: 20px; }}
     </style>
 """, unsafe_allow_html=True)
 
@@ -163,7 +173,7 @@ if not st.session_state["logado"]:
     _, col_login, _ = st.columns([1.2, 1, 1.2])
     with col_login:
         placeholder_topo = st.empty()
-        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>U</span><span style='color: {COR_VERDE};'>2T</span></h1>", unsafe_allow_html=True)
+        placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span class='logo-u'>U</span><span class='logo-2t'>2T</span></h1>", unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; font-style: italic; color: #555; margin-top: 0;'>{SLOGAN}</p>", unsafe_allow_html=True)
         
         # ALTERNÂNCIA ENTRE LOGIN E CADASTRO
@@ -216,8 +226,8 @@ if not st.session_state["logado"]:
                     if logado_agora:
                         if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                         with st.spinner(""):
-                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODA", "UP 2 TODAY"]:
-                                placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span style='color: {COR_AZUL};'>{t[:2]}</span><span style='color: {COR_VERDE};'>{t[2:]}</span></h1>", unsafe_allow_html=True)
+                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODAY"]:
+                                placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span class='logo-u'>{t[:2]}</span><span class='logo-2t'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                                 time_module.sleep(0.05)
                         st.rerun()
                     else:
@@ -344,8 +354,7 @@ else:
             st.stop()
 
         # INSTRUÇÃO INTUITIVA PARA LOGÍSTICA E PCM
-        st.success("✍️ **Dica para Logística:** Clique diretamente nas colunas de **Início** ou **Fim** para preencher a disponibilidade. O sistema salva automaticamente ao sair da célula.")
-        st.success("✍️ **Dica para o PCM:** Clique diretamente nas colunas de **Área** ou **Executor** para alterar/definir o setor e o mecânico. O sistema salva automaticamente ao sair da célula.")
+        st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
         
         # 1. Carrega os dados
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
@@ -355,27 +364,21 @@ else:
         c_per, c_area, c_turno = st.columns([0.4, 0.3, 0.3])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje_input, amanha], key="dt_filter")
         
-        # Opções de filtro dinâmicas
         opcoes_area = ["Todas"] + ORDEM_AREAS
         opcoes_turno = ["Todos"] + LISTA_TURNOS
         
         with c_area: f_area = st.selectbox("Filtrar Área", opcoes_area)
         with c_turno: f_turno = st.selectbox("Filtrar Turno", opcoes_turno)
         
-        # 3. Colunas para Botões de Download
         c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
 
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
             
-            # APLICAÇÃO DOS FILTROS ADICIONAIS
-            if f_area != "Todas":
-                df_f = df_f[df_f['area'] == f_area]
-            if f_turno != "Todos":
-                df_f = df_f[df_f['turno'] == f_turno]
+            if f_area != "Todas": df_f = df_f[df_f['area'] == f_area]
+            if f_turno != "Todos": df_f = df_f[df_f['turno'] == f_turno]
             
-            # --- LÓGICA DE ORDENAÇÃO POR TURNO ---
             ordem_turno_map = {"Não definido": 0, "Dia": 1, "Noite": 2}
             df_f['turno_idx'] = df_f['turno'].map(ordem_turno_map).fillna(0)
             
@@ -384,28 +387,22 @@ else:
             
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
-                
-                # Definir áreas a serem exibidas (se filtrar área, mostra apenas ela)
                 areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
-                
                 for area in areas_para_exibir:
-                    # Filtra por área e aplica a ordenação pelo índice do turno
                     df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
-                    
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
                         
-                        # Colunas configuradas: 'area' adicionada para edição direta
                         edited_df = st.data_editor(
                             df_editor_base[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
                             column_config={
                                 "realizado": st.column_config.CheckboxColumn("OK", width="small"),
                                 "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS),
                                 "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
-                                "inicio_disp": st.column_config.TextColumn("Início (Preencher)", help="Digite o horário de início"),
-                                "fim_disp": st.column_config.TextColumn("Fim (Preencher)", help="Digite o horário de término"),
-                                "executor": st.column_config.TextColumn("Executor", help="Nome do mecânico responsável"),
+                                "inicio_disp": st.column_config.TextColumn("Início (Preencher)"),
+                                "fim_disp": st.column_config.TextColumn("Fim (Preencher)"),
+                                "executor": st.column_config.TextColumn("Executor"),
                                 "id_chamado": None
                             }, 
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
@@ -431,8 +428,7 @@ else:
                                         except: pass
                                 conn.commit()
                                 st.toast("Alteração salva!", icon="✅")
-                                time_module.sleep(0.5)
-                                st.rerun()
+                                time_module.sleep(0.5); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
@@ -480,37 +476,12 @@ else:
                 st.rerun()
                 
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
-        
-        # 1. Busca os chamados pendentes (incluindo o motorista/solicitante)
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
-        
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
-                # 2. Configura valores padrão: Executor vazio e disponibilidade zerada
-                df_p['Executor'] = ""
-                df_p['Area_Destino'] = "Mecânica"
-                df_p['Data_Programada'] = datetime.now().date()
-                df_p['Inicio'] = "00:00"
-                df_p['Fim'] = "00:00"
-                df_p['Aprovar'] = False
+                df_p['Executor'], df_p['Area_Destino'], df_p['Data_Programada'], df_p['Inicio'], df_p['Fim'], df_p['Aprovar'] = "", "Mecânica", datetime.now().date(), "00:00", "00:00", False
                 st.session_state.df_ap_work = df_p
-            
-            # 3. Exibe a tabela com o Solicitante visível
-            ed_c = st.data_editor(
-                st.session_state.df_ap_work, 
-                hide_index=True, 
-                use_container_width=True, 
-                column_config={
-                    "data_solicitacao": "Aberto em", 
-                    "motorista": "Solicitante", 
-                    "Data_Programada": st.column_config.DateColumn("Data Programada"), 
-                    "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), 
-                    "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), 
-                    "id": None
-                }, 
-                key="editor_chamados"
-            )
-            
+            ed_c = st.data_editor(st.session_state.df_ap_work, hide_index=True, use_container_width=True, column_config={"data_solicitacao": "Aberto em", "motorista": "Solicitante", "Data_Programada": st.column_config.DateColumn("Data Programada"), "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "Aprovar": st.column_config.CheckboxColumn("Aprovar?"), "id": None}, key="editor_chamados")
             if st.button("Processar Agendamentos", type="primary"):
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 if not selecionados.empty:
@@ -519,9 +490,7 @@ else:
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem, empresa_id) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, 'Não definido', :ic, 'Chamado', :eid)"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ti": r['Inicio'], "tf": r['Fim'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id'], "eid": emp_id})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
                         conn.commit()
-                    st.success("✅ Agendamentos processados!")
-                    del st.session_state.df_ap_work
-                    st.rerun()
+                    st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
@@ -530,15 +499,11 @@ else:
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql(text("SELECT area, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
         with c1:
-            st.markdown("**Serviços por Área**")
-            st.bar_chart(df_ind['area'].value_counts(), color=COR_AZUL)
-            st.caption("🔍 **O que isso mostra?** Identifica quais setores da oficina estão com maior carga.")
+            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_VERDE) 
         with c2: 
             if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
-                st.markdown("**Status de Conclusão**")
-                st.bar_chart(df_st, color=COR_VERDE)
-                st.caption("🔍 **O que isso mostra?** Mede a eficiência de entrega da equipe.")
+                st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_AZUL) 
         st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
         query_lead = text("SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True AND t.empresa_id = :eid")
         df_lead = pd.read_sql(query_lead, engine, params={"eid": emp_id})
@@ -546,20 +511,18 @@ else:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
-            with col_m1:
-                st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias")
-                st.caption("🔍 Média entre chamado e entrega.")
+            with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias")
             with col_m2:
                 df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
-                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_AZUL)
+                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_VERDE)
 
     elif aba_ativa == "👥 Minha Equipe":
         st.subheader("👥 Gestão de Equipe e Acessos")
-        st.info("💡 **Dica profissional:** Para editar senhas, altere diretamente na tabela. Para excluir, marque a caixa 'Exc' e clique no botão abaixo.")
+        st.info("💡 **Dica profissional:** Para editar senhas ou cargos, altere diretamente na tabela. Para excluir, marque 'Exc' e clique no botão abaixo.")
         
         with st.expander("➕ Cadastrar Novo Integrante", expanded=True):
             with st.form("form_novo_usuario", clear_on_submit=True):
-                col1, col2, col3 = st.columns([1, 1, 1]) # Adicionada terceira coluna para o Perfil
+                col1, col2, col3 = st.columns([1, 1, 1]) 
                 novo_u = col1.text_input("Login (Ex: pedro.motorista)")
                 nova_s = col2.text_input("Senha de Acesso", type="password")
                 novo_p = col3.selectbox("Cargo/Perfil", ["motorista", "admin"]) # Campo de seleção de cargo
@@ -571,51 +534,27 @@ else:
                                              {"u": novo_u.lower(), "s": nova_s, "p": novo_p, "eid": emp_id})
                                 conn.commit()
                             st.success(f"✅ Acesso para '{novo_u}' ({novo_p}) criado com sucesso!")
-                            time_module.sleep(1.5)
-                            st.rerun()
-                        except:
-                            st.error("Erro: Este login já existe ou houve um problema com o banco.")
-                    else:
-                        st.warning("Preencha todos os campos.")
+                            time_module.sleep(1.5); st.rerun()
+                        except: st.error("Erro: Este login já existe ou houve um problema com o banco.")
+                    else: st.warning("Preencha todos os campos.")
 
-        st.divider()
-        st.subheader("Integrantes Cadastrados")
+        st.divider(); st.subheader("Integrantes Cadastrados")
         df_users = pd.read_sql(text("SELECT id, login, senha, perfil as cargo FROM usuarios WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
-        
         if not df_users.empty:
             df_users['Exc'] = False
-            ed_users = st.data_editor(
-                df_users[['Exc', 'login', 'senha', 'cargo', 'id']], 
-                hide_index=True, 
-                use_container_width=True,
-                column_config={
-                    "id": None,
-                    "Exc": st.column_config.CheckboxColumn("Excluir", width="small"),
-                    "senha": st.column_config.TextColumn("Senha", help="Altere a senha aqui e salve"),
-                    "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])
-                },
-                key="editor_equipe"
-            )
-
+            ed_users = st.data_editor(df_users[['Exc', 'login', 'senha', 'cargo', 'id']], hide_index=True, use_container_width=True, column_config={"id": None, "Exc": st.column_config.CheckboxColumn("Excluir", width="small"), "senha": st.column_config.TextColumn("Senha"), "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])}, key="editor_equipe")
             if st.button("🗑️ Excluir Selecionados da Equipe"):
                 usuarios_para_deletar = ed_users[ed_users['Exc'] == True]['id'].tolist()
                 if usuarios_para_deletar:
                     with engine.connect() as conn:
-                        for u_id in usuarios_para_deletar:
-                            conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": int(u_id)})
+                        for u_id in usuarios_para_deletar: conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": int(u_id)})
                         conn.commit()
-                    st.warning("Integrantes removidos.")
-                    time_module.sleep(1)
-                    st.rerun()
-
+                    st.warning("Integrantes removidos."); time_module.sleep(1); st.rerun()
             if st.session_state.editor_equipe["edited_rows"]:
                 with engine.connect() as conn:
                     for idx, changes in st.session_state.editor_equipe["edited_rows"].items():
                         user_db_id = int(df_users.iloc[idx]['id'])
                         for col, val in changes.items():
-                            if col != 'Exc':
-                                conn.execute(text(f"UPDATE usuarios SET {col} = :v WHERE id = :i"), {"v": str(val), "i": user_db_id})
-                    conn.commit()
-                st.toast("Dados da equipe atualizados!", icon="👥")
-        else:
-            st.write("Nenhum integrante cadastrado ainda.")
+                            if col != 'Exc': conn.execute(text(f"UPDATE usuarios SET {col} = :v WHERE id = :i"), {"v": str(val), "i": user_db_id})
+                    conn.commit(); st.toast("Dados da equipe atualizados!", icon="👥")
+        else: st.write("Nenhum integrante cadastrado ainda.")
