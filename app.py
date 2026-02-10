@@ -22,7 +22,7 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FORÇAR TEXTO BRANCO ABSOLUTO NOS BOTÕES ---
+# --- CSS PARA FORÇAR TEXTO E ÍCONES BRANCOS NOS BOTÕES ---
 st.markdown(f"""
     <style>
     /* Força fundo branco absoluto no app */
@@ -53,11 +53,17 @@ st.markdown(f"""
         border-radius: 8px !important;
     }}
 
-    /* Alvo específico no parágrafo/texto que o Streamlit coloca dentro do botão */
+    /* Alvo específico no parágrafo/texto dentro do botão */
     button p, button span, button div {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         opacity: 1 !important;
+    }}
+
+    /* FORÇA O ÍCONE DO OLHINHO (SVG) A FICAR BRANCO */
+    button svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
     }}
 
     /* LOGO: Azul Marinho no U e Verde no 2T */
