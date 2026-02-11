@@ -22,15 +22,20 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL DEFINITIVO: BRANCO TOTAL EM ITENS SELECIONADOS ---
+# --- CSS PARA TEMA CLARO FIXO, BARRA LATERAL E CALENDÁRIO ---
 st.markdown(f"""
     <style>
-    /* Força fundo branco absoluto no app */
+    /* Força fundo branco absoluto no app principal */
     html, body, [data-testid="stAppViewContainer"], .stApp {{
         background-color: #FFFFFF !important;
     }}
 
-    /* Textos gerais em cinza escuro para fundo branco */
+    /* AJUSTE DA BARRA LATERAL (SIDEBAR) */
+    [data-testid="stSidebar"], [data-testid="stSidebar"] > div:first-child {{
+        background-color: #F4F7F6 !important;
+    }}
+
+    /* Textos gerais em cinza escuro para fundo claro */
     p, label, span, div, .stMarkdown, [data-testid="stText"] {{
         color: #31333F !important;
         -webkit-text-fill-color: #31333F !important;
@@ -40,10 +45,6 @@ st.markdown(f"""
     div[data-testid="stRadio"] > div {{
         display: flex;
         justify-content: center;
-        background-color: #ffffff;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #e0e0e0;
     }}
 
     /* BOTÕES: Fundo Azul e Borda Verde */
@@ -60,13 +61,13 @@ st.markdown(f"""
         color: #FFFFFF !important;
         fill: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
-        opacity: 1 !important;
     }}
 
-    /* AÇÃO DEFINITIVA: OBRIGA OS NÚMEROS SELECIONADOS A FICAREM BRANCO */
-    div[data-baseweb="calendar"] [aria-selected="true"] div,
-    div[data-baseweb="calendar"] [aria-selected="true"] span,
-    div[data-baseweb="calendar"] [aria-selected="true"] {{
+    /* ATAQUE DIRETO AO CALENDÁRIO (Células de Seleção) */
+    [data-baseweb="calendar"] [class*="selected"],
+    [data-baseweb="calendar"] [class*="Highlighted"],
+    [data-baseweb="calendar"] [aria-selected="true"],
+    [data-baseweb="calendar"] [aria-selected="true"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         fill: #FFFFFF !important;
