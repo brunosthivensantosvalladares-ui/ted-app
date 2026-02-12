@@ -22,47 +22,47 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL: BOTOES MARINHO E ABA ATIVA EM VERDE ---
+# --- CSS FINAL: CORREÇÃO TOTAL DE BOTÕES E ABA ATIVA ---
 st.markdown(f"""
     <style>
-    /* 1. FUNDOS E SIDEBAR */
+    /* 1. FUNDOS E SIDEBAR #DFDFDF */
     html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
     [data-testid="stSidebar"] {{ background-color: #DFDFDF !important; }}
 
     /* 2. TEXTOS GERAIS */
     p, label, span, div, .stMarkdown, [data-testid="stText"] {{ color: #31333F !important; }}
 
-    /* 3. BOTOES GERAIS (Sair, Criar, Salvar) - AZUL MARINHO */
-    button[kind="secondary"], button[kind="primary"] {{
+    /* 3. BOTÕES GERAIS (Sair, Criar Acesso, Login) - AZUL MARINHO FORÇADO */
+    /* O uso de baseButton-header e baseButton-secondary garante que pegue dentro de forms */
+    button[kind="primary"], button[kind="secondary"], [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-secondary"] {{
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
-        color: #FFFFFF !important;
     }}
 
-    /* 4. DESTAQUE EXCLUSIVO: ABA ATIVA EM VERDE */
-    /* Este seletor identifica o botão que o seu Python marcou como 'primary' no topo */
+    /* 4. DESTAQUE EXCLUSIVO: ABA ATIVA EM VERDE (Horizontal) */
     div.stHorizontalBlock button[kind="primary"] {{
         background-color: #31ad64 !important;
         border: 2px solid #1b224c !important;
-        font-weight: bold !important;
     }}
 
-    /* Garante texto branco em todos os botões */
-    button p, button span, button div {{ color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }}
+    /* 5. TEXTO BRANCO ABSOLUTO EM TODOS OS BOTÕES */
+    button p, button span, button div, [data-testid="stBaseButton-primary"] p {{
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }}
     button svg, [data-testid="stDateInput"] svg {{ fill: #FFFFFF !important; color: #FFFFFF !important; }}
 
-    /* 5. CALENDARIO PADRONIZADO (AZUL COM BORDA VERDE) */
+    /* 6. CALENDÁRIO PADRONIZADO (AZUL COM BORDA VERDE) */
     div[data-baseweb="calendar"] [aria-selected="true"],
-    div[data-baseweb="calendar"] [class*="Selected"],
-    div[data-baseweb="calendar"] [class*="Highlighted"] {{
+    div[data-baseweb="calendar"] [class*="Selected"] {{
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 50% !important;
     }}
     div[data-baseweb="calendar"] [aria-selected="true"] * {{ color: #FFFFFF !important; }}
 
-    /* 6. LOGIN E LOGOTIPO */
+    /* 7. LOGIN E LOGOTIPO */
     div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; background-color: #ffffff; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
     .logo-u {{ color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; }}
