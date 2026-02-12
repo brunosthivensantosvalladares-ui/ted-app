@@ -22,47 +22,49 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FORÇAR TEXTO BRANCO ABSOLUTO NOS BOTÕES ---
+# --- CSS FINAL: SIDEBAR #DFDFDF E CALENDÁRIO PADRONIZADO ---
 st.markdown(f"""
     <style>
-    /* Força fundo branco absoluto no app */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background-color: #FFFFFF !important;
-    }}
+    /* 1. FUNDOS: App Branco e Sidebar Cinza #DFDFDF */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
+    [data-testid="stSidebar"] {{ background-color: #DFDFDF !important; }}
 
-    /* Garante visibilidade dos textos gerais em cinza escuro */
-    p, label, span, div, .stMarkdown, [data-testid="stText"] {{
-        color: #31333F !important;
-        -webkit-text-fill-color: #31333F !important;
-    }}
+    /* 2. TEXTOS GERAIS */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ color: #31333F !important; }}
 
-    /* CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
-    div[data-testid="stRadio"] > div {{
-        display: flex;
-        justify-content: center;
-        background-color: #ffffff;
-        padding: 10px;
-        border-radius: 10px;
-        border: 1px solid #e0e0e0;
-    }}
-
-    /* AÇÃO DEFINITIVA PARA BOTÕES: FORÇA O TEXTO BRANCO EM TUDO QUE ESTIVER DENTRO DELE */
+    /* 3. BOTÕES DO APP: Azul Marinho com Borda Verde */
     button[kind="primary"], button[kind="secondary"], button {{
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
     }}
+    button p, button span, button div {{ color: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }}
 
-    /* Alvo específico no parágrafo/texto que o Streamlit coloca dentro do botão */
-    button p, button span, button div {{
-        color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
-        opacity: 1 !important;
+    /* 4. ÍCONES BRANCOS (Olhinho e Calendário) */
+    button svg, [data-testid="stDateInput"] svg {{ fill: #FFFFFF !important; color: #FFFFFF !important; }}
+
+    /* 5. CALENDÁRIO: PADRONIZANDO A PARTE DE BAIXO COM O TOPO */
+    /* Força o Azul Marinho e Borda Verde na seleção e no intervalo */
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] [class*="Selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"] {{
+        background-color: #1b224c !important;
+        background: #1b224c !important;
+        border: 2px solid #31ad64 !important;
+        border-radius: 50% !important;
     }}
 
-    /* LOGO: Azul Marinho no U e Verde no 2T */
-    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
-    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
+    /* Força o número a ficar Branco Absoluto dentro da seleção */
+    div[data-baseweb="calendar"] [aria-selected="true"] *,
+    div[data-baseweb="calendar"] [class*="Selected"] * {{
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }}
+
+    /* 6. LOGOTIPO E CENTRALIZAÇÃO LOGIN */
+    div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; background-color: #ffffff; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
+    .logo-u {{ color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
