@@ -53,9 +53,11 @@ st.markdown(f"""
     /* 5. CALENDÁRIO: Círculos em VERDE e Números em BRANCO */
     /* Alvo: Fundo da seleção */
     [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [class*="selected"] {{
+    [data-baseweb="calendar"] [class*="selected"],
+    [data-baseweb="calendar"] [class*="Highlighted"] {{
         background-color: #31ad64 !important;
         background: #31ad64 !important;
+        color: #FFFFFF !important;
     }}
     
     /* Alvo: Texto dentro da seleção */
