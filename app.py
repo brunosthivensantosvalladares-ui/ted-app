@@ -19,23 +19,24 @@ COR_AZUL = "#1b224c"  # Azul Marinho Profundo do 'U'
 COR_VERDE = "#31ad64" # Verde Esmeralda do '2T'
 COR_FUNDO = "#f4f7f6"
 
-# --- CSS REVISADO: RESTAURANDO LARGURA E CORES DO CALENDÁRIO ---
+# --- CSS FINAL: RESTAURANDO LARGURA E CORES DO CALENDÁRIO ---
 st.markdown(f"""
     <style>
-    /* 1. FUNDOS: App Branco e Sidebar Cinza #E0E0E1 */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{ 
-        background-color: #FFFFFF !important; 
-    }}
-    [data-testid="stSidebar"] {{ 
-        background-color: #E0E0E1 !important; 
-    }}
-
-    /* 2. TEXTOS: Garante legibilidade em cinza escuro */
-    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ 
-        color: #31333F !important; 
+    /* 1. DESTRAVA A LARGURA: Força a tela a ser ampla como antes */
+    [data-testid="stAppViewBlockContainer"] {{
+        max-width: none !important;
+        width: 100% !important;
+        padding: 1rem 5rem !important;
     }}
 
-    /* 3. BOTÕES: Azul Marinho com Borda Verde e Texto Branco */
+    /* 2. FUNDOS: App Branco e Sidebar Cinza #E0E0E1 */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
+    [data-testid="stSidebar"] {{ background-color: #E0E0E1 !important; }}
+
+    /* 3. TEXTOS: Garante legibilidade em cinza escuro */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ color: #31333F !important; }}
+
+    /* 4. BOTÕES: Azul Marinho com Borda Verde e Texto Branco */
     .stButton>button {{
         background-color: #1b224c !important;
         color: #FFFFFF !important;
@@ -44,30 +45,25 @@ st.markdown(f"""
         border-radius: 8px !important;
     }}
 
-    /* 4. ÍCONES: Olhinho e Setas Brancos */
-    button svg, [data-testid="stDateInput"] svg {{ 
-        fill: #FFFFFF !important; 
-        color: #FFFFFF !important; 
-    }}
+    /* 5. ÍCONES: Olhinho e Setas Brancos */
+    button svg, [data-testid="stDateInput"] svg {{ fill: #FFFFFF !important; color: #FFFFFF !important; }}
 
-    /* 5. CALENDÁRIO: Círculos em VERDE e Números em BRANCO */
-    /* Alvo: Fundo da seleção */
-    [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [class*="selected"],
-    [data-baseweb="calendar"] [class*="Highlighted"] {{
+    /* 6. CALENDÁRIO: Círculos em VERDE e Números em BRANCO */
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] [class*="selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"] {{
         background-color: #31ad64 !important;
         background: #31ad64 !important;
         color: #FFFFFF !important;
     }}
     
-    /* Alvo: Texto dentro da seleção */
-    [data-baseweb="calendar"] [aria-selected="true"] *,
-    [data-baseweb="calendar"] [class*="selected"] * {{
+    div[data-baseweb="calendar"] [aria-selected="true"] *,
+    div[data-baseweb="calendar"] [class*="selected"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 6. LOGOTIPO: Azul Marinho e Verde Esmeralda */
+    /* 7. LOGOTIPO: Azul Marinho e Verde Esmeralda */
     .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
