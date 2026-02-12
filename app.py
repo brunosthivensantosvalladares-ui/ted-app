@@ -10,7 +10,7 @@ import time as time_module # Importado para evitar conflito com datetime.time
 # --- CONFIGURAÇÕES DE MARCA ---
 NOME_SISTEMA = "Up 2 Today"
 SLOGAN = "Seu Controle. Nossa Prioridade."
-LOGO_URL = "https://i.postimg.cc/QdCc3z7f/logo.png"
+LOGO_URL = "https://i.postimg.cc/85HwzdmP/logo-png.png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
 
