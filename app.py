@@ -19,7 +19,7 @@ COR_AZUL = "#1b224c"  # Azul Marinho Profundo do 'U'
 COR_VERDE = "#31ad64" # Verde Esmeralda do '2T'
 COR_FUNDO = "#f4f7f6"
 
-# --- CSS ATUALIZADO: SIDEBAR CINZA E CALENDÁRIO COM SELEÇÃO VERDE ---
+# --- CSS DEFINITIVO: SIDEBAR CINZA E CALENDÁRIO VERDE BLINDADO ---
 st.markdown(f"""
     <style>
     /* 1. Fundo branco no app e cinza na sidebar */
@@ -51,18 +51,19 @@ st.markdown(f"""
         -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 6. CALENDÁRIO: Círculos de Seleção em VERDE e Números em BRANCO */
-    /* Muda a cor do fundo do dia selecionado/intervalo para Verde */
-    [data-baseweb="calendar"] [class*="selected"],
-    [data-baseweb="calendar"] [class*="Highlighted"],
-    [data-baseweb="calendar"] [aria-selected="true"] {{
+    /* 6. ATAQUE TOTAL AO CALENDÁRIO: Força Fundo VERDE e Texto BRANCO */
+    /* Este seletor pega qualquer célula que o sistema tente pintar de azul e força o verde */
+    div[data-baseweb="calendar"] [class*="selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"],
+    div[data-baseweb="calendar"] [aria-selected="true"] {{
         background-color: #31ad64 !important;
+        background: #31ad64 !important;
         color: #FFFFFF !important;
     }}
 
-    /* Força o branco nos números dentro do círculo verde */
-    [data-baseweb="calendar"] [aria-selected="true"] *,
-    [data-baseweb="calendar"] [class*="selected"] * {{
+    /* Garante que o número dentro do círculo verde ignore qualquer outra cor */
+    div[data-baseweb="calendar"] [aria-selected="true"] *,
+    div[data-baseweb="calendar"] [class*="selected"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         fill: #FFFFFF !important;
