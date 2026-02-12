@@ -37,7 +37,7 @@ st.markdown(f"""
     /* 3. Centralização dos botões de Login/Cadastro */
     div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; }}
 
-    /* 4. BOTÕES: Restaurando Azul Marinho e Letras Brancas */
+    /* 4. BOTÕES: Azul Marinho e Letras Brancas */
     .stButton>button {{
         background-color: #1b224c !important;
         color: #FFFFFF !important;
@@ -46,26 +46,28 @@ st.markdown(f"""
         border-radius: 8px !important;
     }}
 
-    /* 5. Ícones e Detalhes em Branco (Olhinho e Setas) */
+    /* 5. Ícones em Branco (Olhinho e Setas) */
     button svg, [data-testid="stDateInput"] svg {{ 
         fill: #FFFFFF !important; 
         color: #FFFFFF !important; 
     }}
 
-    /* 6. ALVO CIRÚRGICO: Datas selecionadas no calendário (Branco sobre Azul) */
-    /* Ataca apenas o texto dentro da célula selecionada no calendário */
-    div[data-baseweb="calendar"] [aria-selected="true"] {{
+    /* 6. ATAQUE CIRÚRGICO AO CALENDÁRIO */
+    /* Força o branco em qualquer elemento dentro de um dia selecionado ou destacado */
+    [data-baseweb="calendar"] [aria-selected="true"] div,
+    [data-baseweb="calendar"] [aria-selected="true"] span,
+    [data-baseweb="calendar"] [class*="selected"] {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }}
     
-    /* Garante que o número dentro do círculo azul não herde o cinza do app */
-    div[data-baseweb="calendar"] [aria-selected="true"] * {{
+    /* Garante que o cabeçalho do calendário (Mês/Ano) também fique branco */
+    [data-baseweb="calendar"] [aria-live="polite"],
+    [data-baseweb="calendar"] [role="presentation"] {{
         color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 7. LOGOTIPO: Restaurando Azul Marinho no U e Verde no 2T */
+    /* 7. LOGOTIPO: Azul Marinho no U e Verde no 2T */
     .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
