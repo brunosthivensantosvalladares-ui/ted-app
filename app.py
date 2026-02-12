@@ -22,55 +22,62 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL: SIDEBAR #DFDFDF, SETA CINZA E BOTOES CORRIGIDOS ---
+# --- CSS REVISADO: APENAS SETA CINZA E SIDEBAR #DFDFDF ---
 st.markdown(f"""
     <style>
-    /* 1. FUNDOS E SIDEBAR #DFDFDF */
+    /* 1. FUNDOS: App Branco e Sidebar Cinza #DFDFDF */
     html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
     [data-testid="stSidebar"] {{ background-color: #DFDFDF !important; }}
 
-    /* 2. FLECHINHA DA SIDEBAR (ABRIR/FECHAR) EM CINZA */
-    /* Ataca o botão que fica flutuando quando a barra está fechada ou aberta */
-    [data-testid="stSidebarCollapsedControl"] svg,
+    /* 2. FLECHINHA DA SIDEBAR EM CINZA (PARA NÃO FICAR INVISÍVEL) */
+    [data-testid="stSidebarCollapsedControl"] svg, 
     button[data-testid="stBaseButton-headerNoPadding"] svg {{
         fill: #808080 !important;
         color: #808080 !important;
     }}
 
-    /* 3. TEXTOS GERAIS */
-    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ color: #31333F !important; }}
+    /* 3. TEXTOS: Garante visibilidade em cinza escuro */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{
+        color: #31333F !important;
+    }}
 
-    /* 4. BOTÕES GERAIS (Sair, Criar Acesso, Login) - AZUL MARINHO */
-    button[kind="primary"], button[kind="secondary"], 
-    [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-secondary"] {{
+    /* 4. CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
+    div[data-testid="stRadio"] > div {{
+        display: flex;
+        justify-content: center;
+        background-color: #ffffff;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }}
+
+    /* 5. BOTÕES: Fundo Azul Marinho e Letras Brancas (Mantido Original) */
+    button[kind="primary"], button[kind="secondary"], button {{
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
-    }}
-
-    /* 5. DESTAQUE EXCLUSIVO: ABA ATIVA EM VERDE */
-    div.stHorizontalBlock button[kind="primary"] {{
-        background-color: #31ad64 !important;
-        border: 2px solid #1b224c !important;
-    }}
-
-    /* 6. TEXTO BRANCO EM TODOS OS BOTÕES */
-    button p, button span, button div, [data-testid="stBaseButton-primary"] p {{
         color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 7. CALENDÁRIO PADRONIZADO (AZUL COM BORDA VERDE) */
+    button p, button span, button div {{
+        color: #FFFFFF !important;
+    }}
+
+    /* 6. ÍCONES: Olhinho e Calendário em Branco */
+    button svg, [data-testid="stDateInput"] svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }}
+
+    /* 7. CALENDÁRIO: Fundo Verde para Seleção */
     div[data-baseweb="calendar"] [aria-selected="true"],
-    div[data-baseweb="calendar"] [class*="Selected"] {{
-        background-color: #1b224c !important;
-        border: 2px solid #31ad64 !important;
-        border-radius: 50% !important;
+    div[data-baseweb="calendar"] [class*="Selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"] {{
+        background-color: #31ad64 !important;
+        background: #31ad64 !important;
     }}
-    div[data-baseweb="calendar"] [aria-selected="true"] * {{ color: #FFFFFF !important; }}
 
-    /* 8. LOGIN E LOGOTIPO */
-    div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; background-color: #ffffff; padding: 10px; border-radius: 10px; border: 1px solid #e0e0e0; }}
+    /* 8. LOGOTIPO */
     .logo-u {{ color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; }}
     </style>
