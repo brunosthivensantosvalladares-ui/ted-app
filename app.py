@@ -22,36 +22,51 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL BLINDADO: SIDEBAR E CALENDÁRIO ---
+# --- CSS ATUALIZADO: SIDEBAR CINZA E TRAVA DE BRANCO ---
 st.markdown(f"""
     <style>
-    /* 1. Cores de Fundo Principal e Sidebar */
+    /* 1. Fundo branco no app e cinza na sidebar */
     html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
     [data-testid="stSidebar"] {{ background-color: #E0E0E1 !important; }}
 
-    /* 2. Textos gerais e Centralização Rádio */
-    p, label, span, div, .stMarkdown {{ color: #31333F !important; }}
+    /* 2. Textos gerais em cinza escuro */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ 
+        color: #31333F !important; 
+        -webkit-text-fill-color: #31333F !important; 
+    }}
+
+    /* 3. Centralização dos botões de Login/Cadastro */
     div[data-testid="stRadio"] > div {{ display: flex; justify-content: center; }}
 
-    /* 3. Botões e Logotipo */
-    .stButton>button {{ background-color: #1b224c !important; border: 2px solid #31ad64 !important; border-radius: 8px !important; }}
-    button p, button span, button div, button svg {{ color: #FFFFFF !important; fill: #FFFFFF !important; -webkit-text-fill-color: #FFFFFF !important; }}
-    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
-    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
+    /* 4. Botões: Fundo Azul e Borda Verde */
+    button[kind="primary"], button[kind="secondary"], button {{
+        background-color: #1b224c !important;
+        border: 2px solid #31ad64 !important;
+        border-radius: 8px !important;
+    }}
 
-    /* 4. ATAQUE TOTAL AO CALENDÁRIO (DIA SELECIONADO) */
-    /* Este bloco 'limpa' a cor cinza imposta pelo Streamlit e força o branco */
-    div[data-baseweb="calendar"] [aria-selected="true"],
-    div[data-baseweb="calendar"] [aria-selected="true"] * {{
+    /* 5. Texto Branco: Botões, Olhinho e Topo do Calendário */
+    button p, button span, button div, button svg,
+    div[data-baseweb="calendar"] [aria-live="polite"],
+    div[data-baseweb="calendar"] [role="presentation"] svg {{
+        color: #FFFFFF !important;
+        fill: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }}
+
+    /* 6. ATAQUE FINAL CALENDÁRIO: Branco nos dias selecionados */
+    [data-baseweb="calendar"] [class*="selected"],
+    [data-baseweb="calendar"] [class*="Highlighted"],
+    [data-baseweb="calendar"] [aria-selected="true"],
+    [data-baseweb="calendar"] [aria-selected="true"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         fill: #FFFFFF !important;
-        background-clip: text;
     }}
 
-    /* Força as setas e topo do calendário que estavam ficando escuros */
-    div[data-baseweb="calendar"] button svg {{ fill: #FFFFFF !important; }}
-    div[data-baseweb="calendar"] [aria-live="polite"] {{ color: #FFFFFF !important; }}
+    /* 7. Logotipo U2T */
+    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
