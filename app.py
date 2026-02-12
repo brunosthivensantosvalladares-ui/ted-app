@@ -22,55 +22,59 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS FINAL: COMPATIBILIDADE DE TEMA E CALENDÁRIO VERDE ---
+# --- CSS FINAL: CALENDÁRIO VERDE PARA CONTRASTE ---
 st.markdown(f"""
     <style>
-    /* 1. TRAVA DE MODO CLARO TOTAL */
-    :root {{
-        --st-colors-background: #FFFFFF;
-        --st-colors-text: #31333F;
-    }}
-
-    /* 2. FUNDOS E SIDEBAR */
+    /* 1. FUNDOS: App Branco e Sidebar Cinza #E0E0E1 */
     html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
     [data-testid="stSidebar"] {{ background-color: #E0E0E1 !important; }}
 
-    /* 3. TEXTOS GERAIS */
-    p, label, span, div, .stMarkdown, [data-testid="stText"] {{ color: #31333F !important; }}
+    /* 2. TEXTOS: Garante visibilidade em cinza escuro */
+    p, label, span, div, .stMarkdown, [data-testid="stText"] {{
+        color: #31333F !important;
+        -webkit-text-fill-color: #31333F !important;
+    }}
 
-    /* 4. BOTÕES E ÍCONES */
-    .stButton>button {{
+    /* 3. CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
+    div[data-testid="stRadio"] > div {{
+        display: flex;
+        justify-content: center;
+        background-color: #ffffff;
+        padding: 10px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }}
+
+    /* 4. BOTÕES: Fundo Azul Marinho e Letras Brancas */
+    button[kind="primary"], button[kind="secondary"], button {{
         background-color: #1b224c !important;
-        color: #FFFFFF !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
     }}
-    button svg, [data-testid="stDateInput"] svg {{ fill: #FFFFFF !important; color: #FFFFFF !important; }}
 
-    /* 5. CALENDÁRIO: RESOLVENDO O CONFLITO DE MODO ESCURO */
-    /* Força o fundo da seleção para Verde */
-    [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [class*="selected"] {{
-        background-color: #31ad64 !important;
-        color: #FFFFFF !important;
-    }}
-
-    /* Força os números e dias a ignorarem o modo escuro do celular */
-    [data-baseweb="calendar"] div, 
-    [data-basWeb="calendar"] span {{
-        color: #31333F !important;
-    }}
-
-    /* Garante que o número SELECIONADO seja sempre branco */
-    [data-baseweb="calendar"] [aria-selected="true"] *,
-    [data-baseweb="calendar"] [class*="selected"] * {{
+    button p, button span, button div {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 6. LOGOTIPO */
-    .logo-u {{ color: #1b224c !important; }}
-    .logo-2t {{ color: #31ad64 !important; }}
+    /* 5. ÍCONES BRANCOS: Olhinho da senha e calendário */
+    button svg, [data-testid="stDateInput"] svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }}
+
+    /* 6. CALENDÁRIO: FUNDO VERDE PARA VISIBILIDADE DOS NÚMEROS */
+    /* Substitui o azul escuro pelo verde esmeralda na seleção */
+    [data-baseweb="calendar"] [aria-selected="true"],
+    [data-baseweb="calendar"] [class*="Selected"],
+    [data-baseweb="calendar"] [class*="Highlighted"] {{
+        background-color: #31ad64 !important;
+        background: #31ad64 !important;
+    }}
+
+    /* 7. LOGOTIPO: Cores da Marca */
+    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
