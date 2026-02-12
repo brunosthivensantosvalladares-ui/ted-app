@@ -22,7 +22,7 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA SIDEBAR CINZA E CALENDÁRIO VERDE/BRANCO ---
+# --- CSS PARA SIDEBAR CINZA E CALENDÁRIO VERDE (RESOLUÇÃO DE CONTRASTE) ---
 st.markdown(f"""
     <style>
     /* 1. FUNDOS: App Branco e Sidebar Cinza #E0E0E1 */
@@ -65,15 +65,18 @@ st.markdown(f"""
         color: #FFFFFF !important;
     }}
 
-    /* 6. CALENDÁRIO: Círculo Verde e Número Branco */
-    /* Muda a cor da bola de seleção para o Verde do Logo */
-    div[data-baseweb="calendar"] [aria-selected="true"] {{
+    /* 6. CALENDÁRIO: FUNDO VERDE PARA DAR VISIBILIDADE AOS NÚMEROS */
+    /* Muda a cor da bola de seleção e do intervalo para o Verde do Logo */
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] [class*="selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"] {{
         background-color: #31ad64 !important;
-        color: #FFFFFF !important;
+        background: #31ad64 !important;
     }}
 
-    /* Força o número dentro da bola a ser Branco */
-    div[data-baseweb="calendar"] [aria-selected="true"] * {{
+    /* Força os números a aparecerem (seja em branco ou herdando o contraste) */
+    div[data-baseweb="calendar"] [aria-selected="true"] *,
+    div[data-baseweb="calendar"] [class*="selected"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
     }}
