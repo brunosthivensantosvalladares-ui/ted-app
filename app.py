@@ -22,25 +22,16 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FORÇAR TEXTO BRANCO ABSOLUTO NOS BOTÕES ---
-st.markdown(f"""
-    <style>
-    /* Força fundo branco absoluto no app */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background-color: #FFFFFF !important;
-    }}
-
-    /* Garante visibilidade dos te# --- CSS FINAL: SIDEBAR CINZA #DFDFDF E CALENDÁRIO AJUSTADO ---
+# --- CSS FINAL: SIDEBAR CINZA #DFDFDF E CORREÇÃO DE ERRO ---
 st.markdown(f"""
     <style>
     /* 1. FUNDOS: App Branco e Sidebar Cinza #DFDFDF */
     html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
     [data-testid="stSidebar"] {{ background-color: #DFDFDF !important; }}
 
-    /* 2. TEXTOS: Garante visibilidade em cinza escuro */
+    /* 2. TEXTOS: Garante legibilidade em cinza escuro */
     p, label, span, div, .stMarkdown, [data-testid="stText"] {{
         color: #31333F !important;
-        -webkit-text-fill-color: #31333F !important;
     }}
 
     /* 3. CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
@@ -58,30 +49,31 @@ st.markdown(f"""
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
+        color: #FFFFFF !important;
     }}
 
+    /* Texto branco absoluto dentro dos botões */
     button p, button span, button div {{
         color: #FFFFFF !important;
-        -webkit-text-fill-color: #FFFFFF !important;
     }}
 
-    /* 5. ÍCONES BRANCOS: Olhinho da senha e calendário */
+    /* 5. ÍCONES BRANCOS: Olhinho da senha e ícone do calendário */
     button svg, [data-testid="stDateInput"] svg {{
         fill: #FFFFFF !important;
         color: #FFFFFF !important;
     }}
 
     /* 6. CALENDÁRIO: FUNDO VERDE PARA VISIBILIDADE DOS NÚMEROS */
-    [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [class*="Selected"],
-    [data-baseweb="calendar"] [class*="Highlighted"] {{
+    div[data-baseweb="calendar"] [aria-selected="true"],
+    div[data-baseweb="calendar"] [class*="Selected"],
+    div[data-baseweb="calendar"] [class*="Highlighted"] {{
         background-color: #31ad64 !important;
         background: #31ad64 !important;
     }}
 
     /* 7. LOGOTIPO: Cores da Marca */
-    .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
-    .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
+    .logo-u {{ color: #1b224c !important; }}
+    .logo-2t {{ color: #31ad64 !important; }}
     </style>
 """, unsafe_allow_html=True)
 
