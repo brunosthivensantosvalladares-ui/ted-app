@@ -22,21 +22,20 @@ COR_FUNDO = "#f4f7f6"
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title=f"{NOME_SISTEMA} - Tudo em Dia", layout="wide", page_icon="🛠️")
 
-# --- CSS PARA FORÇAR TEXTO BRANCO ABSOLUTO NOS BOTÕES ---
+# --- CSS PARA SIDEBAR CINZA E CALENDÁRIO VERDE/BRANCO ---
 st.markdown(f"""
     <style>
-    /* Força fundo branco absoluto no app */
-    html, body, [data-testid="stAppViewContainer"], .stApp {{
-        background-color: #FFFFFF !important;
-    }}
+    /* 1. FUNDOS: App Branco e Sidebar Cinza #E0E0E1 */
+    html, body, [data-testid="stAppViewContainer"], .stApp {{ background-color: #FFFFFF !important; }}
+    [data-testid="stSidebar"] {{ background-color: #E0E0E1 !important; }}
 
-    /* Garante visibilidade dos textos gerais em cinza escuro */
+    /* 2. TEXTOS: Garante visibilidade em cinza escuro no fundo branco */
     p, label, span, div, .stMarkdown, [data-testid="stText"] {{
         color: #31333F !important;
         -webkit-text-fill-color: #31333F !important;
     }}
 
-    /* CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
+    /* 3. CENTRALIZAÇÃO DOS BOTÕES DE LOGIN/CADASTRO */
     div[data-testid="stRadio"] > div {{
         display: flex;
         justify-content: center;
@@ -46,21 +45,40 @@ st.markdown(f"""
         border: 1px solid #e0e0e0;
     }}
 
-    /* AÇÃO DEFINITIVA PARA BOTÕES: FORÇA O TEXTO BRANCO EM TUDO QUE ESTIVER DENTRO DELE */
+    /* 4. BOTÕES: Fundo Azul Marinho e Letras Brancas */
     button[kind="primary"], button[kind="secondary"], button {{
         background-color: #1b224c !important;
         border: 2px solid #31ad64 !important;
         border-radius: 8px !important;
     }}
 
-    /* Alvo específico no parágrafo/texto que o Streamlit coloca dentro do botão */
+    /* Texto branco absoluto dentro dos botões */
     button p, button span, button div {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
         opacity: 1 !important;
     }}
 
-    /* LOGO: Azul Marinho no U e Verde no 2T */
+    /* 5. ÍCONES BRANCOS: Olhinho da senha e ícone do calendário */
+    button svg, [data-testid="stDateInput"] svg {{
+        fill: #FFFFFF !important;
+        color: #FFFFFF !important;
+    }}
+
+    /* 6. CALENDÁRIO: Círculo Verde e Número Branco */
+    /* Muda a cor da bola de seleção para o Verde do Logo */
+    div[data-baseweb="calendar"] [aria-selected="true"] {{
+        background-color: #31ad64 !important;
+        color: #FFFFFF !important;
+    }}
+
+    /* Força o número dentro da bola a ser Branco */
+    div[data-baseweb="calendar"] [aria-selected="true"] * {{
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+    }}
+
+    /* 7. LOGOTIPO: Cores da Marca */
     .logo-u {{ color: #1b224c !important; -webkit-text-fill-color: #1b224c !important; }}
     .logo-2t {{ color: #31ad64 !important; -webkit-text-fill-color: #31ad64 !important; }}
     </style>
