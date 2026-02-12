@@ -54,17 +54,17 @@ st.markdown(f"""
     }}
 
     /* 5. CALENDÁRIO: Círculos Verdes e Números Brancos (Ação Direta) */
-    /* Muda a cor do fundo para Verde do Logo */
+    /* Muda a cor do fundo para Verde do Logo e força o branco nos números */
     [data-baseweb="calendar"] [aria-selected="true"],
-    [data-baseweb="calendar"] [class*="Selected"],
+    [data-baseweb="calendar"] [class*="selected"],
     [data-baseweb="calendar"] [class*="Highlighted"] {{
-        background-color: #31ad64 !important;
+        background-color: {COR_VERDE} !important;
+        background: {COR_VERDE} !important;
         color: #FFFFFF !important;
     }}
 
-    /* Força o branco nos números selecionados (11, 12, etc) */
     [data-baseweb="calendar"] [aria-selected="true"] *,
-    [data-baseweb="calendar"] [class*="Selected"] *,
+    [data-baseweb="calendar"] [class*="selected"] *,
     [data-baseweb="calendar"] [class*="Highlighted"] * {{
         color: #FFFFFF !important;
         -webkit-text-fill-color: #FFFFFF !important;
@@ -242,7 +242,7 @@ if not st.session_state["logado"]:
                     if logado_agora:
                         if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                         with st.spinner(""):
-                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODAY"]:
+                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODA", "UP 2 TODAY"]:
                                 placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span class='logo-u'>{t[:2]}</span><span class='logo-2t'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                                 time_module.sleep(0.05)
                         st.rerun()
