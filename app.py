@@ -70,6 +70,7 @@ st.markdown(f"""
     div.stButton > button[key*="renov_btn"] p {{ color: #000000 !important; }}
 
     /* 6. DESTAQUE DA ABA ATUAL: Verde Esmeralda */
+    /* Aplica o verde apenas nos botões de navegação do topo que estão ativos */
     div.stHorizontalBlock button[kind="primary"] {{
         background-color: #31ad64 !important;
         border: 2px solid #1b224c !important;
@@ -328,7 +329,7 @@ else:
     engine = get_engine(); inicializar_banco()
     emp_id = st.session_state["empresa"] # Filtro global
     usuario_ativo = st.session_state.get("usuario_ativo", "")
-
+    
     # --- BANNER DE PAGAMENTO PROFISSIONAL ANTECIPADO (2 DIAS ANTES) ---
     if st.session_state["perfil"] == "admin" and usuario_ativo != "bruno":
         with engine.connect() as conn:
@@ -406,7 +407,7 @@ else:
     # --- 3. CONTEÚDO DAS PÁGINAS ---
     if aba_ativa == "👑 Gestão Master" and usuario_ativo == "bruno":
         st.subheader("👑 Painel de Controle Master")
-        st.info("💡 Bem-vindo, Bruno. Aqui você gerencia os acessos e pagamentos de todas as empresas.")
+        st.info("💡 Bruno, aqui você ativa os pagamentos e define os prazos das empresas.")
         df_empresas = pd.read_sql(text("SELECT id, nome, email, data_cadastro, data_expiracao, status_assinatura FROM empresa ORDER BY id DESC"), engine)
         if not df_empresas.empty:
             for _, row in df_empresas.iterrows():
@@ -486,16 +487,18 @@ else:
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         ed = st.data_editor(df_area_f.set_index('id')[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
-                                          column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS), "inicio_disp": st.column_config.TextColumn("Início (Preencher)"), "fim_disp": st.column_config.TextColumn("Fim (Preencher)"), "executor": st.column_config.TextColumn("Executor"), "id_chamado": None},
-                                          use_container_width=True, key=f"ed_ted_{d}_{area}")
+                            use_container_width=True, key=f"ed_ted_{d}_{area}", 
+                            column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "id_chamado": None})
                         if not ed.equals(df_area_f.set_index('id')[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for rid, row in ed.iterrows():
-                                    conn.execute(text("UPDATE tarefas SET realizado=:r, area=:ar, turno=:t, prefixo=:p, inicio_disp=:i, fim_disp=:f, executor=:ex, descricao=:ds WHERE id=:id"), {"r":bool(row['realizado']),"ar":str(row['area']),"t":str(row['turno']),"p":str(row['prefixo']),"i":str(row['inicio_disp']),"f":str(row['fim_disp']),"ex":str(row['executor']),"ds":str(row['descricao']),"id":int(rid)})
+                                    conn.execute(text("UPDATE tarefas SET realizado = :r, area = :ar, turno = :t, prefixo = :p, inicio_disp = :i, fim_disp = :f, executor = :ex, descricao = :ds WHERE id = :id"), {"r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), "p": str(row['prefixo']), "i": str(row['inicio_disp']), "f": str(row['fim_disp']), "ex": str(row['executor']), "ds": str(row['descricao']), "id": int(rid)})
                                     if row['realizado'] and pd.notnull(row['id_chamado']):
                                         try: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(row['id_chamado'])})
                                         except: pass
-                                conn.commit(); st.toast("Alteração salva!", icon="✅"); time_module.sleep(0.5); st.rerun()
+                                conn.commit()
+                                st.toast("Alteração salva!", icon="✅")
+                                time_module.sleep(0.5); st.rerun()
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
@@ -503,33 +506,62 @@ else:
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
-            with c1: d_i = st.date_input("Data", datetime.now()); e_i = c2.text_input("Executor"); p_i = c3.text_input("Prefixo"); a_i = c4.selectbox("Área", ORDEM_AREAS)
+            with c1: d_i = st.date_input("Data", datetime.now()); e_i = st.text_input("Executor"); p_i = st.text_input("Prefixo"); a_i = st.selectbox("Área", ORDEM_AREAS)
             ds_i, t_i = st.text_area("Descrição"), st.selectbox("Turno", LISTA_TURNOS)
             if st.form_submit_button("Confirmar Agendamento"):
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, descricao, area, turno, origem, empresa_id) VALUES (:dt, :ex, :pr, :ds, :ar, :tu, 'Direto', :eid)"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i, "eid": emp_id})
                     conn.commit(); st.success("✅ Serviço cadastrado!"); st.rerun()
+        st.divider(); st.subheader("📋 Lista de serviços")
+        df_lista = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC, id DESC"), engine, params={"eid": emp_id})
+        if not df_lista.empty:
+            df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date; df_lista['Exc'] = False
+            ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
+            if st.button("🗑️ Excluir Selecionados"):
+                with engine.connect() as conn:
+                    for i in ed_l[ed_l['Exc']==True]['id'].tolist(): conn.execute(text("DELETE FROM tarefas WHERE id = :id"), {"id": int(i)})
+                    conn.commit(); st.warning("🗑️ Itens excluídos."); st.rerun()
+            if st.session_state.ed_lista["edited_rows"]:
+                with engine.connect() as conn:
+                    for idx, changes in st.session_state.ed_lista["edited_rows"].items():
+                        rid = int(df_lista.iloc[idx]['id'])
+                        for col, val in changes.items():
+                            if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
+                    conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
         st.subheader("📥 Chamados Oficina")
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql(text("SELECT id, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid"), engine, params={"eid": emp_id})
-        if not df_p.empty: st.data_editor(df_p, use_container_width=True, hide_index=True)
+        if not df_p.empty:
+            ed_c = st.data_editor(df_p, use_container_width=True, hide_index=True)
         else: st.info("Nenhum chamado pendente.")
 
     elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
         st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
         df_ind = pd.read_sql(text("SELECT area, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
-        if not df_ind.empty: st.bar_chart(df_ind['area'].value_counts())
+        if not df_ind.empty:
+            st.bar_chart(df_ind['area'].value_counts())
 
     elif aba_ativa == "👥 Minha Equipe":
         st.subheader("👥 Gestão de Equipe e Acessos")
         st.info("💡 **Dica profissional:** Para editar senhas ou cargos, altere diretamente na tabela. Para excluir, marque 'Exc' e clique no botão abaixo.")
-        with st.expander("➕ Novo Integrante"):
+        with st.expander("➕ Novo Integrante", expanded=True):
             with st.form("f_u", clear_on_submit=True):
                 u, s, p = st.text_input("Login"), st.text_input("Senha"), st.selectbox("Cargo", ["motorista", "admin"])
-                if st.form_submit_button("Criar"):
+                if st.form_submit_button("Criar Acesso"):
                     with engine.connect() as conn:
                         conn.execute(text("INSERT INTO usuarios (login, senha, perfil, empresa_id) VALUES (:u, :s, :p, :eid)"), {"u": u.lower(), "s": s, "p": p, "eid": emp_id})
-                        conn.commit(); st.success("✅ Acesso criado com sucesso!"); st.rerun()
+                        conn.commit(); st.success("Acesso criado!"); st.rerun()
+        st.divider(); st.subheader("Integrantes Cadastrados")
+        df_users = pd.read_sql(text("SELECT id, login, senha, perfil as cargo FROM usuarios WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
+        if not df_users.empty:
+            df_users['Exc'] = False
+            ed_users = st.data_editor(df_users[['Exc', 'login', 'senha', 'cargo', 'id']], hide_index=True, use_container_width=True, column_config={"id": None, "Exc": st.column_config.CheckboxColumn("Excluir", width="small"), "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])}, key="editor_equipe")
+            if st.button("🗑️ Excluir Selecionados da Equipe"):
+                usuarios_para_deletar = ed_users[ed_users['Exc'] == True]['id'].tolist()
+                if usuarios_para_deletar:
+                    with engine.connect() as conn:
+                        for u_id in usuarios_para_deletar: conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": int(u_id)})
+                        conn.commit(); st.warning("Integrantes removidos."); time_module.sleep(1); st.rerun()
