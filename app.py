@@ -251,7 +251,7 @@ if not st.session_state["logado"]:
                                     st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
                                     logado_agora = True
                             else:
-                                # 3. VERIFICAÇÃO DE USUÁRIOS DA EQUIPE
+                                # 3. VERIFICAÇÃO DE USUÁRIOS DA EQUIPE (MOTORISTAS OU OUTROS ADMINS SECUNDÁRIOS)
                                 u_equipe = conn.execute(text("""
                                     SELECT login, senha, perfil, empresa_id FROM usuarios WHERE LOWER(login) = :u
                                 """), {"u": user_input}).fetchone()
@@ -262,16 +262,13 @@ if not st.session_state["logado"]:
                     if logado_agora:
                         if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                         with st.spinner(""):
-                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODAY"]:
+                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TODAY"]:
                                 placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span class='logo-u'>{t[:2]}</span><span class='logo-2t'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                                 time_module.sleep(0.05)
                         st.rerun()
                     else:
-                        # Só mostra erro se não for o caso de bloqueio por expiração já tratado acima
-                        try:
-                           expirou = res[3] < hoje and res[4] != 'ativo'
-                        except:
-                           expirou = False
+                        try: expirou = res[3] < hoje and res[4] != 'ativo'
+                        except: expirou = False
                         if not expirou: st.error("Dados incorretos ou conta inexistente.")
 
         else: # ABA CRIAR CONTA
@@ -299,14 +296,19 @@ else:
     emp_id = st.session_state["empresa"] # Filtro global
     usuario_ativo = st.session_state.get("usuario_ativo", "")
 
-    # --- AVISO DE EXPIRAÇÃO PRÓXIMA (3 DIAS ANTES) ---
+    # --- BANNER DE PAGAMENTO ANTECIPADO (2 DIAS ANTES) ---
     if st.session_state["perfil"] == "admin" and usuario_ativo != "bruno":
         with engine.connect() as conn:
             dados_exp = conn.execute(text("SELECT data_expiracao, status_assinatura FROM empresa WHERE nome = :n"), {"n": emp_id}).fetchone()
         if dados_exp and dados_exp[1] == 'trial':
-            dias_rest = (pd.to_datetime(dados_exp[0]).date() - datetime.now().date()).days
-            if 0 <= dias_rest <= 3:
-                st.warning(f"📢 **Atenção:** Seu período de teste termina em {dias_rest} dias. Regularize sua assinatura para não perder o acesso!")
+            hoje_dt = datetime.now().date()
+            data_exp_dt = pd.to_datetime(dados_exp[0]).date()
+            dias_rest = (data_exp_dt - hoje_dt).days
+            if 0 <= dias_rest <= 2:
+                with st.warning(f"📢 **Atenção:** Seu acesso expira em {dias_rest} dias. Antecipe seu pagamento para evitar bloqueios!"):
+                    col_p1, col_p2 = st.columns([1, 2])
+                    col_p1.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", width=150, caption="Pix para Renovação")
+                    col_p2.write(f"**Chave Pix:** SEU_EMAIL_OU_CNPJ_AQUI\n\nEnvie o comprovante para o suporte para liberação imediata.")
     
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
@@ -471,8 +473,6 @@ else:
 
     elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
-        st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
-        st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now()); e_i = c2.text_input("Executor"); p_i = c3.text_input("Prefixo"); a_i = c4.selectbox("Área", ORDEM_AREAS)
@@ -508,7 +508,6 @@ else:
             if st.button("🔄 Atualizar Lista", use_container_width=True):
                 if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
                 st.rerun()
-        st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
@@ -527,7 +526,6 @@ else:
 
     elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
-        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql(text("SELECT area, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
         with c1: st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_VERDE) 
@@ -546,7 +544,6 @@ else:
 
     elif aba_ativa == "👥 Minha Equipe":
         st.subheader("👥 Gestão de Equipe e Acessos")
-        st.info("💡 **Dica profissional:** Para editar senhas ou cargos, altere diretamente na tabela. Para excluir, marque 'Exc' e clique no botão abaixo.")
         with st.expander("➕ Cadastrar Novo Integrante", expanded=True):
             with st.form("form_novo_usuario", clear_on_submit=True):
                 col1, col2, col3 = st.columns([1, 1, 1]); novo_u = col1.text_input("Login (Ex: pedro.motorista)"); nova_s = col2.text_input("Senha de Acesso", type="password"); novo_p = col3.selectbox("Cargo/Perfil", ["motorista", "admin"])
