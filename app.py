@@ -239,14 +239,20 @@ if not st.session_state["logado"]:
                             
                             if res and res[2] == pw_input:
                                 hoje = datetime.now().date()
-                                # TRAVA DE SEGURANÇA: DATA DE EXPIRAÇÃO COM PAINEL DE PAGAMENTO
+                                # TRAVA DE SEGURANÇA: DATA DE EXPIRAÇÃO COM PAINEL DE PAGAMENTO PROFISSIONAL
                                 if res[3] < hoje and res[4] != 'ativo':
                                     st.error(f"⚠️ Acesso bloqueado: Período de teste expirado em {res[3].strftime('%d/%m/%Y')}.")
-                                    st.markdown("### 💳 Renovação de Assinatura")
-                                    # QR CODE FIXO (Substitua pela sua URL real e Chave Pix)
-                                    st.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", width=250, caption="Escaneie para pagar via Pix")
-                                    st.info("💡 **Chave Pix:** SEU_EMAIL_OU_CNPJ_AQUI")
-                                    st.warning("Após pagar, envie o comprovante para o suporte para liberação imediata.")
+                                    with st.container(border=True):
+                                        st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+                                        st.markdown("### 💳 Renovação de Assinatura")
+                                        st.write("Realize o pagamento via Pix para liberar seu acesso imediatamente:")
+                                        _, col_qr, _ = st.columns([0.5, 1, 0.5])
+                                        col_qr.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", use_container_width=True)
+                                        st.write("**Chave Pix (Copie e Cole):**")
+                                        st.code("SEU_EMAIL_OU_CNPJ_AQUI")
+                                        st.caption("Clique no código acima para copiar")
+                                        st.warning("Após pagar, envie o comprovante para o suporte para liberação imediata.")
+                                        st.markdown("</div>", unsafe_allow_html=True)
                                 else:
                                     st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
                                     logado_agora = True
@@ -262,13 +268,16 @@ if not st.session_state["logado"]:
                     if logado_agora:
                         if "opcao_selecionada" in st.session_state: del st.session_state["opcao_selecionada"]
                         with st.spinner(""):
-                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TODAY"]:
+                            for t in ["UP", "UP 2", "UP 2 T", "UP 2 TOD", "UP 2 TODAY"]:
                                 placeholder_topo.markdown(f"<h1 style='text-align: center; margin-bottom: 0;'><span class='logo-u'>{t[:2]}</span><span class='logo-2t'>{t[2:]}</span></h1>", unsafe_allow_html=True)
                                 time_module.sleep(0.05)
                         st.rerun()
                     else:
-                        try: expirou = res[3] < hoje and res[4] != 'ativo'
-                        except: expirou = False
+                        # Só mostra erro se não for o caso de bloqueio por expiração já tratado acima
+                        try:
+                           expirou = res[3] < hoje and res[4] != 'ativo'
+                        except:
+                           expirou = False
                         if not expirou: st.error("Dados incorretos ou conta inexistente.")
 
         else: # ABA CRIAR CONTA
@@ -296,7 +305,7 @@ else:
     emp_id = st.session_state["empresa"] # Filtro global
     usuario_ativo = st.session_state.get("usuario_ativo", "")
 
-    # --- BANNER DE PAGAMENTO ANTECIPADO (2 DIAS ANTES) ---
+    # --- BANNER DE PAGAMENTO PROFISSIONAL ANTECIPADO (2 DIAS ANTES) ---
     if st.session_state["perfil"] == "admin" and usuario_ativo != "bruno":
         with engine.connect() as conn:
             dados_exp = conn.execute(text("SELECT data_expiracao, status_assinatura FROM empresa WHERE nome = :n"), {"n": emp_id}).fetchone()
@@ -305,10 +314,16 @@ else:
             data_exp_dt = pd.to_datetime(dados_exp[0]).date()
             dias_rest = (data_exp_dt - hoje_dt).days
             if 0 <= dias_rest <= 2:
-                with st.warning(f"📢 **Atenção:** Seu acesso expira em {dias_rest} dias. Antecipe seu pagamento para evitar bloqueios!"):
-                    col_p1, col_p2 = st.columns([1, 2])
-                    col_p1.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", width=150, caption="Pix para Renovação")
-                    col_p2.write(f"**Chave Pix:** SEU_EMAIL_OU_CNPJ_AQUI\n\nEnvie o comprovante para o suporte para liberação imediata.")
+                with st.warning(f"📢 **Atenção:** Seu período de teste termina em {dias_rest} dias ({data_exp_dt.strftime('%d/%m/%Y')}). Antecipe o pagamento para evitar bloqueios!"):
+                    c_b1, c_b2, c_b3 = st.columns([1, 1.5, 1])
+                    with c_b2:
+                        st.markdown("<div style='background-color: white; padding: 20px; border-radius: 12px; border: 1px solid #e0e0e0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>", unsafe_allow_html=True)
+                        st.markdown("<h4 style='color: #31333F; margin-top: 0;'>💳 Renovação Pix</h4>", unsafe_allow_html=True)
+                        st.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", width=180)
+                        st.write("**Chave Pix (Copie e Cole):**")
+                        st.code("SEU_EMAIL_OU_CNPJ_AQUI")
+                        st.caption("Pague e envie o comprovante para o suporte.")
+                        st.markdown("</div>", unsafe_allow_html=True)
     
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
@@ -432,28 +447,14 @@ else:
             st.stop()
         st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
-        hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
-        c_per, c_area, c_turno = st.columns([0.4, 0.3, 0.3])
-        with c_per: p_sel = st.date_input("Filtrar Período", [hoje_input, amanha], key="dt_filter")
-        opcoes_area = ["Todas"] + ORDEM_AREAS
-        opcoes_turno = ["Todos"] + LISTA_TURNOS
-        with c_area: f_area = st.selectbox("Filtrar Área", opcoes_area)
-        with c_turno: f_turno = st.selectbox("Filtrar Turno", opcoes_turno)
-        c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
+        p_sel = st.date_input("Filtrar Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)], key="dt_filter")
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
-            if f_area != "Todas": df_f = df_f[df_f['area'] == f_area]
-            if f_turno != "Todos": df_f = df_f[df_f['turno'] == f_turno]
-            ordem_turno_map = {"Não definido": 0, "Dia": 1, "Noite": 2}
-            df_f['turno_idx'] = df_f['turno'].map(ordem_turno_map).fillna(0)
-            with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
-            with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
-                areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
-                for area in areas_para_exibir:
-                    df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
+                for area in ORDEM_AREAS:
+                    df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='id')
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
@@ -476,13 +477,10 @@ else:
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
             with c1: d_i = st.date_input("Data", datetime.now()); e_i = c2.text_input("Executor"); p_i = c3.text_input("Prefixo"); a_i = c4.selectbox("Área", ORDEM_AREAS)
-            c5, c6 = st.columns(2)
-            with c5: t_ini = st.text_input("Início (Ex: 08:00)", "00:00")
-            with c6: t_fim = st.text_input("Fim (Ex: 10:00)", "00:00")
             ds_i, t_i = st.text_area("Descrição"), st.selectbox("Turno", LISTA_TURNOS)
             if st.form_submit_button("Confirmar Agendamento"):
                 with engine.connect() as conn:
-                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem, empresa_id) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tu, 'Direto', :eid)"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ti": t_ini, "tf": t_fim, "ds": ds_i, "ar": a_i, "tu": t_i, "eid": emp_id})
+                    conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, descricao, area, turno, origem, empresa_id) VALUES (:dt, :ex, :pr, :ds, :ar, :tu, 'Direto', :eid)"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ds": ds_i, "ar": a_i, "tu": t_i, "eid": emp_id})
                     conn.commit(); st.success("✅ Serviço cadastrado!"); st.rerun()
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC, id DESC"), engine, params={"eid": emp_id})
