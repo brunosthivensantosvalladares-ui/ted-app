@@ -241,7 +241,7 @@ if not st.session_state["logado"]:
                                 hoje = datetime.now().date()
                                 # TRAVA DE SEGURANÇA: DATA DE EXPIRAÇÃO
                                 if res[3] < hoje and res[4] != 'ativo':
-                                    st.error(f"⚠️ O período de teste da empresa '{res[0]}' expirou em {res[3].strftime('%d/%m/%Y')}. Entre em contato para ativar.")
+                                    st.error(f"⚠️ Acesso expirado em {res[3].strftime('%d/%m/%Y')}. Entre em contato para renovar.")
                                 else:
                                     st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
                                     logado_agora = True
@@ -289,11 +289,19 @@ else:
     emp_id = st.session_state["empresa"] # Filtro global
     usuario_ativo = st.session_state.get("usuario_ativo", "")
     
+    # --- AVISO DE EXPIRAÇÃO PRÓXIMA NO TOPO ---
+    if st.session_state["perfil"] == "admin" and usuario_ativo != "bruno":
+        with engine.connect() as conn:
+            dados_exp = conn.execute(text("SELECT data_expiracao, status_assinatura FROM empresa WHERE nome = :n"), {"n": emp_id}).fetchone()
+        if dados_exp and dados_exp[1] == 'trial':
+            dias_rest = (pd.to_datetime(dados_exp[0]).date() - datetime.now().date()).days
+            if 0 <= dias_rest <= 3:
+                st.warning(f"📢 Seu período de teste termina em {dias_rest} dias. Regularize sua assinatura para não perder o acesso!")
+
     if st.session_state["perfil"] == "motorista":
         opcoes = ["✍️ Abrir Solicitação", "📜 Status"]
     else:
         opcoes = ["📅 Agenda Principal", "📋 Cadastro Direto", "📥 Chamados Oficina", "📊 Indicadores", "👥 Minha Equipe"]
-        # ADICIONA ABA MASTER APENAS PARA O BRUNO
         if usuario_ativo == "bruno":
             opcoes.append("👑 Gestão Master")
 
@@ -351,36 +359,28 @@ else:
     # --- 3. CONTEÚDO DAS PÁGINAS ---
     if aba_ativa == "👑 Gestão Master" and usuario_ativo == "bruno":
         st.subheader("👑 Painel de Controle Master")
-        st.info("💡 Bem-vindo, Bruno. Aqui você gerencia os acessos e pagamentos de todas as empresas.")
-        
+        st.info("💡 Bruno, aqui você ativa os pagamentos e define os prazos das empresas.")
         df_empresas = pd.read_sql(text("SELECT id, nome, email, data_cadastro, data_expiracao, status_assinatura FROM empresa ORDER BY id DESC"), engine)
-        
         if not df_empresas.empty:
             for _, row in df_empresas.iterrows():
                 with st.container(border=True):
-                    c1, c2, c3, c4 = st.columns([2, 2, 2, 1])
+                    c1, c2, c3, c4 = st.columns([2, 2, 1.5, 1])
                     c1.write(f"**Empresa:** {row['nome']}\n\n**Email:** {row['email']}")
-                    c2.write(f"📅 Cadastro: {row['data_cadastro']}")
-                    c2.write(f"⌛ Expiração: {row['data_expiracao']}")
-                    
+                    c2.write(f"📅 Cadastro: {row['data_cadastro']}\n\n⌛ Expira: {row['data_expiracao']}")
                     status_cor = "green" if row['status_assinatura'] == 'ativo' else "orange"
                     c3.markdown(f"Status: :{status_cor}[{row['status_assinatura'].upper()}]")
-                    
                     if row['status_assinatura'] != 'ativo':
                         if c4.button("✅ Ativar", key=f"ativar_{row['id']}", use_container_width=True):
-                            nova_data = datetime.now().date() + timedelta(days=365)
                             with engine.connect() as conn:
-                                conn.execute(text("UPDATE empresa SET status_assinatura = 'ativo', data_expiracao = :d WHERE id = :i"), {"d": nova_data, "i": row['id']})
+                                conn.execute(text("UPDATE empresa SET status_assinatura = 'ativo', data_expiracao = :d WHERE id = :i"), {"d": datetime.now().date() + timedelta(days=365), "i": row['id']})
                                 conn.commit()
-                            st.success(f"Empresa {row['nome']} ativada por 1 ano!")
-                            time_module.sleep(1); st.rerun()
+                            st.rerun()
                     else:
                         if c4.button("🚫 Bloquear", key=f"bloq_{row['id']}", use_container_width=True):
                             with engine.connect() as conn:
                                 conn.execute(text("UPDATE empresa SET status_assinatura = 'expirado' WHERE id = :i"), {"i": row['id']})
                                 conn.commit()
                             st.rerun()
-        else: st.write("Nenhuma empresa cadastrada no sistema.")
 
     elif aba_ativa == "✍️ Abrir Solicitação":
         st.subheader("✍️ Nova Solicitação de Manutenção")
@@ -403,15 +403,12 @@ else:
 
     elif aba_ativa == "📅 Agenda Principal":
         st.subheader("📅 Agenda Principal")
-        
-        # --- PAINEL DE RESUMO RÁPIDO NO TOPO (COM PROTEÇÃO CONTRA ERROS) ---
         try:
             df_stats = pd.read_sql(text("SELECT data, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
             if not df_stats.empty:
                 df_stats['data'] = pd.to_datetime(df_stats['data']).dt.date
                 hoje_dt = datetime.now().date()
                 df_hoje = df_stats[df_stats['data'] == hoje_dt]
-                
                 m1, m2, m3 = st.columns(3)
                 with m1: st.metric("Agendados Hoje", len(df_hoje))
                 with m2: st.metric("Concluídos", len(df_hoje[df_hoje['realizado'] == True]))
@@ -420,39 +417,25 @@ else:
         except:
             st.warning("⚠️ O banco de dados está iniciando. Aguarde alguns segundos.")
             st.stop()
-
-        # INSTRUÇÃO INTUITIVA PARA LOGÍSTICA E PCM
         st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
-        
-        # 1. Carrega os dados
         df_a = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC"), engine, params={"eid": emp_id})
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
-        
-        # 2. LINHA DE FILTROS (Data, Área e Turno)
         c_per, c_area, c_turno = st.columns([0.4, 0.3, 0.3])
         with c_per: p_sel = st.date_input("Filtrar Período", [hoje_input, amanha], key="dt_filter")
-        
         opcoes_area = ["Todas"] + ORDEM_AREAS
         opcoes_turno = ["Todos"] + LISTA_TURNOS
-        
         with c_area: f_area = st.selectbox("Filtrar Área", opcoes_area)
         with c_turno: f_turno = st.selectbox("Filtrar Turno", opcoes_turno)
-        
         c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
-
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data']).dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
-            
             if f_area != "Todas": df_f = df_f[df_f['area'] == f_area]
             if f_turno != "Todos": df_f = df_f[df_f['turno'] == f_turno]
-            
             ordem_turno_map = {"Não definido": 0, "Dia": 1, "Noite": 2}
             df_f['turno_idx'] = df_f['turno'].map(ordem_turno_map).fillna(0)
-            
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
-            
             for d in sorted(df_f['data'].unique(), reverse=True):
                 st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
                 areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
@@ -461,36 +444,13 @@ else:
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         df_editor_base = df_area_f.set_index('id')
-                        
-                        edited_df = st.data_editor(
-                            df_editor_base[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
-                            column_config={
-                                "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS),
-                                "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
-                                "inicio_disp": st.column_config.TextColumn("Início (Preencher)"),
-                                "fim_disp": st.column_config.TextColumn("Fim (Preencher)"),
-                                "executor": st.column_config.TextColumn("Executor"),
-                                "id_chamado": None
-                            }, 
-                            hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
-                        )
-
+                        edited_df = st.data_editor(df_editor_base[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']], 
+                            column_config={"realizado": st.column_config.CheckboxColumn("OK", width="small"), "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS), "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS), "inicio_disp": st.column_config.TextColumn("Início (Preencher)"), "fim_disp": st.column_config.TextColumn("Fim (Preencher)"), "executor": st.column_config.TextColumn("Executor"), "id_chamado": None}, 
+                            hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}")
                         if not edited_df.equals(df_editor_base[['realizado', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado']]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
-                                    conn.execute(text("""
-                                        UPDATE tarefas SET 
-                                        realizado = :r, area = :ar, turno = :t, prefixo = :p, 
-                                        inicio_disp = :i, fim_disp = :f, 
-                                        executor = :ex, descricao = :ds 
-                                        WHERE id = :id
-                                    """), {
-                                        "r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), 
-                                        "p": str(row['prefixo']), "i": str(row['inicio_disp']), 
-                                        "f": str(row['fim_disp']), "ex": str(row['executor']), 
-                                        "ds": str(row['descricao']), "id": int(row_id)
-                                    })
+                                    conn.execute(text("UPDATE tarefas SET realizado = :r, area = :ar, turno = :t, prefixo = :p, inicio_disp = :i, fim_disp = :f, executor = :ex, descricao = :ds WHERE id = :id"), {"r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), "p": str(row['prefixo']), "i": str(row['inicio_disp']), "f": str(row['fim_disp']), "ex": str(row['executor']), "ds": str(row['descricao']), "id": int(row_id)})
                                     if row['realizado'] and pd.notnull(row['id_chamado']):
                                         try: conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic"), {"ic": int(row['id_chamado'])})
                                         except: pass
@@ -504,10 +464,7 @@ else:
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
         with st.form("f_d", clear_on_submit=True):
             c1, c2, c3, c4 = st.columns(4)
-            with c1: d_i = st.date_input("Data", datetime.now())
-            with c2: e_i = st.text_input("Executor")
-            with c3: p_i = st.text_input("Prefixo")
-            with c4: a_i = st.selectbox("Área", ORDEM_AREAS)
+            with c1: d_i = st.date_input("Data", datetime.now()); e_i = c2.text_input("Executor"); p_i = c3.text_input("Prefixo"); a_i = c4.selectbox("Área", ORDEM_AREAS)
             c5, c6 = st.columns(2)
             with c5: t_ini = st.text_input("Início (Ex: 08:00)", "00:00")
             with c6: t_fim = st.text_input("Fim (Ex: 10:00)", "00:00")
@@ -515,13 +472,11 @@ else:
             if st.form_submit_button("Confirmar Agendamento"):
                 with engine.connect() as conn:
                     conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, origem, empresa_id) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tu, 'Direto', :eid)"), {"dt": str(d_i), "ex": e_i, "pr": p_i, "ti": t_ini, "tf": t_fim, "ds": ds_i, "ar": a_i, "tu": t_i, "eid": emp_id})
-                    conn.commit()
-                    st.success("✅ Serviço cadastrado!"); st.rerun()
+                    conn.commit(); st.success("✅ Serviço cadastrado!"); st.rerun()
         st.divider(); st.subheader("📋 Lista de serviços")
         df_lista = pd.read_sql(text("SELECT * FROM tarefas WHERE empresa_id = :eid ORDER BY data DESC, id DESC"), engine, params={"eid": emp_id})
         if not df_lista.empty:
-            df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
-            df_lista['Exc'] = False
+            df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date; df_lista['Exc'] = False
             ed_l = st.data_editor(df_lista[['Exc', 'data', 'turno', 'executor', 'prefixo', 'inicio_disp', 'fim_disp', 'descricao', 'area', 'id']], hide_index=True, use_container_width=True, key="ed_lista")
             if st.button("🗑️ Excluir Selecionados"):
                 with engine.connect() as conn:
@@ -533,7 +488,7 @@ else:
                         rid = int(df_lista.iloc[idx]['id'])
                         for col, val in changes.items():
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                conn.commit(); st.rerun()
+                    conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
         c_tit, c_refresh = st.columns([0.8, 0.2])
@@ -542,7 +497,6 @@ else:
             if st.button("🔄 Atualizar Lista", use_container_width=True):
                 if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
                 st.rerun()
-                
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": emp_id})
         if not df_p.empty:
@@ -557,72 +511,56 @@ else:
                         for _, r in selecionados.iterrows():
                             conn.execute(text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, turno, id_chamado, origem, empresa_id) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, 'Não definido', :ic, 'Chamado', :eid)"), {"dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], "ti": r['Inicio'], "tf": r['Fim'], "ds": r['descricao'], "ar": r['Area_Destino'], "ic": r['id'], "eid": emp_id})
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id"), {"id": r['id']})
-                        conn.commit()
-                    st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
+                        conn.commit(); st.success("✅ Agendamentos processados!"); del st.session_state.df_ap_work; st.rerun()
         else: st.info("Nenhum chamado pendente no momento.")
 
     elif aba_ativa == "📊 Indicadores":
         st.subheader("📊 Painel de Performance Operacional")
-        st.info("💡 **Dica:** Utilize esses dados para identificar gargalos e planejar a capacidade da oficina.")
         c1, c2 = st.columns(2)
         df_ind = pd.read_sql(text("SELECT area, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
-        with c1:
-            st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_VERDE) 
+        with c1: st.markdown("**Serviços por Área**"); st.bar_chart(df_ind['area'].value_counts(), color=COR_VERDE) 
         with c2: 
             if not df_ind.empty:
                 df_st = df_ind['realizado'].map({True: 'Concluído', False: 'Pendente'}).value_counts()
                 st.markdown("**Status de Conclusão**"); st.bar_chart(df_st, color=COR_AZUL) 
         st.divider(); st.markdown("**⏳ Tempo de Resposta (Lead Time)**")
-        query_lead = text("SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True AND t.empresa_id = :eid")
-        df_lead = pd.read_sql(query_lead, engine, params={"eid": emp_id})
+        df_lead = pd.read_sql(text("SELECT c.data_solicitacao, t.data as data_conclusao FROM chamados c JOIN tarefas t ON c.id = t.id_chamado WHERE t.realizado = True AND t.empresa_id = :eid"), engine, params={"eid": emp_id})
         if not df_lead.empty:
             df_lead['data_solicitacao'], df_lead['data_conclusao'] = pd.to_datetime(df_lead['data_solicitacao']), pd.to_datetime(df_lead['data_conclusao'])
             df_lead['dias'] = (df_lead['data_conclusao'] - df_lead['data_solicitacao']).dt.days.apply(lambda x: max(x, 0))
             col_m1, col_m2 = st.columns([0.3, 0.7])
             with col_m1: st.metric("Lead Time Médio", f"{df_lead['dias'].mean():.1f} Dias")
-            with col_m2:
-                df_ev = df_lead.groupby('data_conclusao')['dias'].mean().reset_index()
-                st.line_chart(df_ev.set_index('data_conclusao'), color=COR_VERDE)
+            with col_m2: st.line_chart(df_lead.groupby('data_conclusao')['dias'].mean().reset_index().set_index('data_conclusao'), color=COR_VERDE)
 
     elif aba_ativa == "👥 Minha Equipe":
         st.subheader("👥 Gestão de Equipe e Acessos")
-        st.info("💡 **Dica profissional:** Para editar senhas ou cargos, altere diretamente na tabela. Para excluir, marque 'Exc' e clique no botão abaixo.")
-        
         with st.expander("➕ Cadastrar Novo Integrante", expanded=True):
             with st.form("form_novo_usuario", clear_on_submit=True):
-                col1, col2, col3 = st.columns([1, 1, 1]) 
-                novo_u = col1.text_input("Login (Ex: pedro.motorista)")
-                nova_s = col2.text_input("Senha de Acesso", type="password")
-                novo_p = col3.selectbox("Cargo/Perfil", ["motorista", "admin"]) # Campo de seleção de cargo
+                col1, col2, col3 = st.columns([1, 1, 1]); novo_u = col1.text_input("Login (Ex: pedro.motorista)"); nova_s = col2.text_input("Senha de Acesso", type="password"); novo_p = col3.selectbox("Cargo/Perfil", ["motorista", "admin"])
                 if st.form_submit_button("Criar Acesso"):
                     if novo_u and nova_s:
                         try:
                             with engine.connect() as conn:
-                                conn.execute(text("INSERT INTO usuarios (login, senha, perfil, empresa_id) VALUES (:u, :s, :p, :eid)"), 
-                                             {"u": novo_u.lower(), "s": nova_s, "p": novo_p, "eid": emp_id})
-                                conn.commit()
-                            st.success(f"✅ Acesso para '{novo_u}' ({novo_p}) criado com sucesso!")
-                            time_module.sleep(1.5); st.rerun()
-                        except: st.error("Erro: Este login já existe ou houve um problema com o banco.")
-                    else: st.warning("Preencha todos os campos.")
-
+                                conn.execute(text("INSERT INTO usuarios (login, senha, perfil, empresa_id) VALUES (:u, :s, :p, :eid)"), {"u": novo_u.lower(), "s": nova_s, "p": novo_p, "eid": emp_id})
+                                conn.commit(); st.success(f"✅ Acesso para '{novo_u}' ({novo_p}) criado!"); time_module.sleep(1.5); st.rerun()
+                        except: st.error("Erro: Login já existe.")
+                    else: st.warning("Preencha tudo.")
         st.divider(); st.subheader("Integrantes Cadastrados")
         df_users = pd.read_sql(text("SELECT id, login, senha, perfil as cargo FROM usuarios WHERE empresa_id = :eid"), engine, params={"eid": emp_id})
         if not df_users.empty:
             df_users['Exc'] = False
-            ed_users = st.data_editor(df_users[['Exc', 'login', 'senha', 'cargo', 'id']], hide_index=True, use_container_width=True, column_config={"id": None, "Exc": st.column_config.CheckboxColumn("Excluir", width="small"), "senha": st.column_config.TextColumn("Senha"), "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])}, key="editor_equipe")
+            ed_users = st.data_editor(df_users[['Exc', 'login', 'senha', 'cargo', 'id']], hide_index=True, use_container_width=True, column_config={"id": None, "Exc": st.column_config.CheckboxColumn("Excluir", width="small"), "cargo": st.column_config.SelectboxColumn("Cargo", options=["motorista", "admin"])}, key="editor_equipe")
             if st.button("🗑️ Excluir Selecionados da Equipe"):
                 usuarios_para_deletar = ed_users[ed_users['Exc'] == True]['id'].tolist()
                 if usuarios_para_deletar:
                     with engine.connect() as conn:
                         for u_id in usuarios_para_deletar: conn.execute(text("DELETE FROM usuarios WHERE id = :id"), {"id": int(u_id)})
-                        conn.commit()
-                    st.warning("Integrantes removidos."); time_module.sleep(1); st.rerun()
+                        conn.commit(); st.warning("Integrantes removidos."); time_module.sleep(1); st.rerun()
             if st.session_state.editor_equipe["edited_rows"]:
                 with engine.connect() as conn:
                     for idx, changes in st.session_state.editor_equipe["edited_rows"].items():
                         user_db_id = int(df_users.iloc[idx]['id'])
                         for col, val in changes.items():
                             if col != 'Exc': conn.execute(text(f"UPDATE usuarios SET {col} = :v WHERE id = :i"), {"v": str(val), "i": user_db_id})
-                conn.commit(); st.toast("Dados da equipe atualizados!", icon="👥")
-        else: st.write("Nenhum integrante cadastrado ainda.")
+                    conn.commit(); st.toast("Equipe atualizada!", icon="👥")
+        else: st.write("Nenhum integrante cadastrado.")
