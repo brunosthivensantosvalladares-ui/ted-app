@@ -546,7 +546,7 @@ else:
                                 st.toast("Alteração salva!", icon="✅")
                                 time_module.sleep(0.5); st.rerun()
 
-  elif aba_ativa == "📋 Cadastro Direto":
+    elif aba_ativa == "📋 Cadastro Direto":
         st.subheader("📝 Agendamento Direto")
         st.info("💡 **Atenção:** Use este formulário para serviços que não vieram de chamados.")
         st.warning("⚠️ **Nota:** Para reagendar ou corrigir, basta alterar diretamente na lista abaixo. O salvamento é automático.")
