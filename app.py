@@ -130,105 +130,91 @@ def exibir_painel_pagamento_pro(origem):
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
 def get_engine():
-    db_url = st.secrets.get("database_url") or os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
-    return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
+    db_url = st.secrets.get("database_url") or os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
+    return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
 
 def inicializar_banco():
-    engine = get_engine()
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("CREATE TABLE IF NOT EXISTS tarefas (id SERIAL PRIMARY KEY, data TEXT, executor TEXT, prefixo TEXT, inicio_disp TEXT, fim_disp TEXT, descricao TEXT, area TEXT, turno TEXT, realizado BOOLEAN DEFAULT FALSE, id_chamado INTEGER, origem TEXT, empresa_id TEXT)"))
-            conn.execute(text("CREATE TABLE IF NOT EXISTS chamados (id SERIAL PRIMARY KEY, motorista TEXT, prefixo TEXT, descricao TEXT, data_solicitacao TEXT, status TEXT DEFAULT 'Pendente', empresa_id TEXT)"))
-            # NOVA TABELA DE EMPRESAS PARA SAAS
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS empresa (
-                    id SERIAL PRIMARY KEY,
-                    nome TEXT NOT NULL,
-                    email TEXT UNIQUE NOT NULL,
-                    senha TEXT NOT NULL,
-                    data_cadastro DATE DEFAULT CURRENT_DATE,
-                    status_assinatura TEXT DEFAULT 'trial',
-                    data_expiracao DATE DEFAULT (CURRENT_DATE + INTERVAL '7 days')
-                )
-            """))
-            # NOVA TABELA DE USUÁRIOS (MOTORISTAS/EQUIPE)
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS usuarios (
-                    id SERIAL PRIMARY KEY,
-                    login TEXT NOT NULL,
-                    senha TEXT NOT NULL,
-                    perfil TEXT DEFAULT 'motorista',
-                    empresa_id TEXT NOT NULL,
-                    UNIQUE(login, empresa_id)
-                )
-            """))
-            try: conn.execute(text("ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS empresa_id TEXT DEFAULT 'U2T_MATRIZ'"))
-            except: pass
-            try: conn.execute(text("ALTER TABLE chamados ADD COLUMN IF NOT EXISTS empresa_id TEXT DEFAULT 'U2T_MATRIZ'"))
-            except: pass
-            conn.commit()
-    except: pass
+    engine = get_engine()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS tarefas (id SERIAL PRIMARY KEY, data TEXT, executor TEXT, prefixo TEXT, inicio_disp TEXT, fim_disp TEXT, descricao TEXT, area TEXT, turno TEXT, realizado BOOLEAN DEFAULT FALSE, id_chamado INTEGER, origem TEXT, empresa_id TEXT)"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS chamados (id SERIAL PRIMARY KEY, motorista TEXT, prefixo TEXT, descricao TEXT, data_solicitacao TEXT, status TEXT DEFAULT 'Pendente', empresa_id TEXT)"))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS empresa (
+                    id SERIAL PRIMARY KEY,
+                    nome TEXT NOT NULL,
+                    email TEXT UNIQUE NOT NULL,
+                    senha TEXT NOT NULL,
+                    data_cadastro DATE DEFAULT CURRENT_DATE,
+                    status_assinatura TEXT DEFAULT 'trial',
+                    data_expiracao DATE DEFAULT (CURRENT_DATE + INTERVAL '7 days')
+                )
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id SERIAL PRIMARY KEY,
+                    login TEXT NOT NULL,
+                    senha TEXT NOT NULL,
+                    perfil TEXT DEFAULT 'motorista',
+                    empresa_id TEXT NOT NULL,
+                    UNIQUE(login, empresa_id)
+                )
+            """))
+            try: conn.execute(text("ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS empresa_id TEXT DEFAULT 'U2T_MATRIZ'"))
+            except: pass
+            try: conn.execute(text("ALTER TABLE chamados ADD COLUMN IF NOT EXISTS empresa_id TEXT DEFAULT 'U2T_MATRIZ'"))
+            except: pass
+            conn.commit()
+    except: pass
 
 def to_excel_native(df):
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Manutencoes')
-    return output.getvalue()
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Manutencoes')
+    return output.getvalue()
 
 @st.cache_data(show_spinner=False)
 def gerar_pdf_periodo(df_periodo, data_inicio, data_fim):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # --- CABEÇALHO COM MARCA U2T (AJUSTADO: LETRAS PRÓXIMAS) ---
-    pdf.set_font("Arial", "B", 22)
-    pdf.set_text_color(27, 34, 76) # Azul Logo
-    pdf.cell(6, 10, "U", ln=0)     # Célula estreita para aproximar
-    pdf.set_text_color(49, 173, 100) # Verde Logo
-    pdf.cell(40, 10, "2T", ln=0)
-    
-    pdf.set_font("Arial", "I", 8)
-    pdf.set_text_color(120, 120, 120)
-    pdf.cell(144, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=1, align="R")
-    
-    pdf.set_font("Arial", "B", 14)
-    pdf.set_text_color(27, 34, 76)
-    pdf.cell(190, 10, f"RELATORIO DE MANUTENCAO - {NOME_SISTEMA.upper()}", ln=True, align="C")
-    
-    pdf.set_font("Arial", "", 10)
-    pdf.set_text_color(0, 0, 0)
-    pdf.cell(190, 8, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
-    pdf.ln(5)
-    
-    for d_process in sorted(df_periodo['data'].unique(), reverse=True):
-        d_formatada = pd.to_datetime(d_process).strftime('%d/%m/%Y')
-        pdf.set_font("Arial", "B", 11); pdf.set_fill_color(240, 240, 240)
-        pdf.cell(190, 8, f" DATA: {d_formatada}", ln=True, fill=True)
-        
-        for area in ORDEM_AREAS:
-            df_area = df_periodo[(df_periodo['data'] == d_process) & (df_periodo['area'] == area)]
-            if not df_area.empty:
-                pdf.set_font("Arial", "B", 9); pdf.set_text_color(49, 173, 100)
-                pdf.cell(190, 7, f" Setor: {area}", ln=True)
-                
-                # Títulos da Tabela (Restaurado para Cinza)
-                pdf.set_font("Arial", "B", 8); pdf.set_text_color(50); pdf.set_fill_color(230, 230, 230)
-                pdf.cell(20, 6, "Prefixo", 1, 0, 'C', True)
-                pdf.cell(35, 6, "Executor", 1, 0, 'C', True)
-                pdf.cell(40, 6, "Disponibilidade", 1, 0, 'C', True)
-                pdf.cell(95, 6, "Descricao", 1, 1, 'C', True)
-                
-                # Linhas da Tabela
-                pdf.set_font("Arial", "", 7); pdf.set_text_color(0)
-                for _, row in df_area.iterrows():
-                    pdf.cell(20, 6, str(row['prefixo']), 1, 0, 'C')
-                    pdf.cell(35, 6, str(row['executor'])[:20], 1, 0, 'C')
-                    pdf.cell(40, 6, f"{row['inicio_disp']} - {row['fim_disp']}", 1, 0, 'C')
-                    pdf.cell(95, 6, str(row['descricao'])[:75], 1, 1, 'L')
-                pdf.ln(2)
-                
-    return pdf.output(dest='S').encode('latin-1')
-
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 22)
+    pdf.set_text_color(27, 34, 76)
+    pdf.cell(6, 10, "U", ln=0)
+    pdf.set_text_color(49, 173, 100)
+    pdf.cell(40, 10, "2T", ln=0)
+    pdf.set_font("Arial", "I", 8)
+    pdf.set_text_color(120, 120, 120)
+    pdf.cell(144, 10, f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=1, align="R")
+    pdf.set_font("Arial", "B", 14)
+    pdf.set_text_color(27, 34, 76)
+    pdf.cell(190, 10, f"RELATORIO DE MANUTENCAO - {NOME_SISTEMA.upper()}", ln=True, align="C")
+    pdf.set_font("Arial", "", 10)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(190, 8, f"Periodo: {data_inicio.strftime('%d/%m/%Y')} ate {data_fim.strftime('%d/%m/%Y')}", ln=True, align="C")
+    pdf.ln(5)
+    for d_process in sorted(df_periodo['data'].unique(), reverse=True):
+        d_formatada = pd.to_datetime(d_process).strftime('%d/%m/%Y')
+        pdf.set_font("Arial", "B", 11); pdf.set_fill_color(240, 240, 240)
+        pdf.cell(190, 8, f" DATA: {d_formatada}", ln=True, fill=True)
+        for area in ORDEM_AREAS:
+            df_area = df_periodo[(df_periodo['data'] == d_process) & (df_periodo['area'] == area)]
+            if not df_area.empty:
+                pdf.set_font("Arial", "B", 9); pdf.set_text_color(49, 173, 100)
+                pdf.cell(190, 7, f" Setor: {area}", ln=True)
+                pdf.set_font("Arial", "B", 8); pdf.set_text_color(50); pdf.set_fill_color(230, 230, 230)
+                pdf.cell(20, 6, "Prefixo", 1, 0, 'C', True)
+                pdf.cell(35, 6, "Executor", 1, 0, 'C', True)
+                pdf.cell(40, 6, "Disponibilidade", 1, 0, 'C', True)
+                pdf.cell(95, 6, "Descricao", 1, 1, 'C', True)
+                pdf.set_font("Arial", "", 7); pdf.set_text_color(0)
+                for _, row in df_area.iterrows():
+                    pdf.cell(20, 6, str(row['prefixo']), 1, 0, 'C')
+                    pdf.cell(35, 6, str(row['executor'])[:20], 1, 0, 'C')
+                    pdf.cell(40, 6, f"{row['inicio_disp']} - {row['fim_disp']}", 1, 0, 'C')
+                    pdf.cell(95, 6, str(row['descricao'])[:75], 1, 1, 'L')
+                pdf.ln(2)
+    return pdf.output(dest='S').encode('latin-1')
+    
 # --- 3. LÓGICA DE LOGIN ---
 if "logado" not in st.session_state: st.session_state["logado"] = False
 if "aba_login" not in st.session_state: st.session_state["aba_login"] = "Acessar"
