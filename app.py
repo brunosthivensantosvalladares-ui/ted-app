@@ -113,7 +113,7 @@ def exibir_painel_pagamento_pro():
         _, col_qr, _ = st.columns([1, 1, 1])
         col_qr.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", use_container_width=True)
         st.markdown("<p style='text-align: center;'><b>Chave Pix (Copie e Cole):</b></p>", unsafe_allow_html=True)
-        st.code("SAN20260214035554445")
+        st.code("3a7713a1-0a98-41b6-86b5-268c70cfe3f8")
         st.warning("⚠️ Após o pagamento, envie o comprovante para o suporte para liberação.")
 
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
