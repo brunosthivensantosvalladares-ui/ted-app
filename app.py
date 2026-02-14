@@ -130,7 +130,6 @@ def exibir_painel_pagamento_pro(origem):
 # --- 2. FUNÇÕES DE SUPORTE E BANCO ---
 @st.cache_resource
 def get_engine():
-    # Prioriza o segredo configurado no painel do Streamlit
     db_url = st.secrets.get("database_url") or os.environ.get("database_url", "postgresql://neondb_owner:npg_WRMhXvJVY79d@ep-lucky-sound-acy7xdyi-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require")
     return create_engine(db_url.replace("postgres://", "postgresql://", 1), pool_pre_ping=True)
 
