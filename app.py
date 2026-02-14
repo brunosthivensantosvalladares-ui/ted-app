@@ -530,7 +530,12 @@ else:
                     conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
-        st.subheader("📥 Chamados Oficina")
+        c_tit, c_refresh = st.columns([0.8, 0.2])
+        with c_tit: st.subheader("📥 Aprovação de Chamados")
+        with c_refresh:
+            if st.button("🔄 Atualizar Lista", use_container_width=True):
+                if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
+                st.rerun()
         st.info("💡 Preencha os campos e marque 'Aprovar' na última coluna para enviar à agenda.")
         df_p = pd.read_sql(text("SELECT id, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid"), engine, params={"eid": emp_id})
         if not df_p.empty:
