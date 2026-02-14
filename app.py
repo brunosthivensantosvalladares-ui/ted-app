@@ -245,6 +245,7 @@ if not st.session_state["logado"]:
                                     st.markdown("### 💳 Renovação de Assinatura")
                                     # QR CODE FIXO (Substitua pela sua URL real e Chave Pix)
                                     st.image("https://i.postimg.cc/3Nn86MF0/QRcode.png", width=250, caption="Escaneie para pagar via Pix")
+                                    st.info("💡 **Chave Pix:** SEU_EMAIL_OU_CNPJ_AQUI")
                                     st.warning("Após pagar, envie o comprovante para o suporte para liberação imediata.")
                                 else:
                                     st.session_state.update({"logado": True, "perfil": "admin", "empresa": res[0], "usuario_ativo": res[0]})
