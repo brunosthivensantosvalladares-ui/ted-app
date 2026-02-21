@@ -263,8 +263,12 @@ if res[3] < hoje and res[4] != 'ativo':
     if st.session_state.get("show_pay_login"):
         exibir_painel_pagamento_pro("login")
                     
-                    # 1. VERIFICAÇÃO DE USUÁRIOS MASTER (ESTÁTICOS)
-masters = {
+                    if st.button(f"Acessar Painel {NOME_SISTEMA}", use_container_width=True, type="primary"):
+                    engine = get_engine()
+                    inicializar_banco()
+                    
+                    # Verifique se 'masters' tem o mesmo recuo que 'engine' acima
+                    masters = {
                         "bruno": {"pw": "master789", "perfil": "admin", "empresa": "U2T_MATRIZ", "login_original": "bruno"},
                         "motorista": {"pw": "12345", "perfil": "motorista", "empresa": "U2T_MATRIZ", "login_original": "motorista_padrao"}
                     }
