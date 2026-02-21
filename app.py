@@ -264,7 +264,7 @@ if res[3] < hoje and res[4] != 'ativo':
         exibir_painel_pagamento_pro("login")
                     
                     # 1. VERIFICAÇÃO DE USUÁRIOS MASTER (ESTÁTICOS)
-                masters = {
+masters = {
                         "bruno": {"pw": "master789", "perfil": "admin", "empresa": "U2T_MATRIZ", "login_original": "bruno"},
                         "motorista": {"pw": "12345", "perfil": "motorista", "empresa": "U2T_MATRIZ", "login_original": "motorista_padrao"}
                     }
