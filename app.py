@@ -251,19 +251,11 @@ if not st.session_state["logado"]:
         # ALTERNÂNCIA ENTRE LOGIN E CADASTRO (Centralizado pelo CSS acima)
         aba = st.radio("Selecione uma opção", ["Acessar", "Criar Conta"], horizontal=True, label_visibility="collapsed")
         
-         # Dentro da aba "Acessar", onde está o erro de bloqueio:
-    if res[3] < hoje and res[4] != 'ativo':
-        st.error(f"⚠️ Acesso bloqueado: Período de teste expirado em {res[3].strftime('%d/%m/%Y')}.")
-    
-    # Criamos uma variável persistente para o painel
-    if st.button("Renove agora a sua assinatura", use_container_width=True, key="renov_btn_login"):
-        st.session_state["show_pay_login"] = True
-    
-    # Se a variável for True, o painel aparece e fica lá
-    if st.session_state.get("show_pay_login"):
-        exibir_painel_pagamento_pro("login")
-                    
-    if st.button(f"Acessar Painel {NOME_SISTEMA}", use_container_width=True, type="primary"):
+        if aba == "Acessar":
+            with st.container(border=True):
+                user_input = st.text_input("E-mail ou Usuário", key="u_log").lower()
+                pw_input = st.text_input("Senha", type="password", key="p_log")
+                if st.button(f"Acessar Painel {NOME_SISTEMA}", use_container_width=True, type="primary"):
                     engine = get_engine()
                     inicializar_banco()
                     
@@ -319,7 +311,7 @@ if not st.session_state["logado"]:
                         except: expirou = False
                         if not expirou: st.error("Dados incorretos ou conta inexistente.")
 
-                    else: # ABA CRIAR CONTA
+        else: # ABA CRIAR CONTA
             with st.container(border=True):
                 st.markdown(f"<h4 style='color:{COR_AZUL}'>🚀 7 Dias Grátis</h4>", unsafe_allow_html=True)
                 n_emp = st.text_input("Nome da Empresa")
@@ -595,7 +587,7 @@ else:
                         rid = int(df_lista.iloc[idx]['id'])
                         for col, val in changes.items():
                             if col != 'Exc': conn.execute(text(f"UPDATE tarefas SET {col} = :v WHERE id = :i"), {"v": str(val), "i": rid})
-                conn.commit(); st.rerun()
+                    conn.commit(); st.rerun()
 
     elif aba_ativa == "📥 Chamados Oficina":
         c_tit, c_refresh = st.columns([0.8, 0.2])
