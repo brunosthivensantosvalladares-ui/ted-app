@@ -253,7 +253,7 @@ if not st.session_state["logado"]:
         
          # Dentro da aba "Acessar", onde está o erro de bloqueio:
     if res[3] < hoje and res[4] != 'ativo':
-    st.error(f"⚠️ Acesso bloqueado: Período de teste expirado em {res[3].strftime('%d/%m/%Y')}.")
+        st.error(f"⚠️ Acesso bloqueado: Período de teste expirado em {res[3].strftime('%d/%m/%Y')}.")
     
     # Criamos uma variável persistente para o painel
     if st.button("Renove agora a sua assinatura", use_container_width=True, key="renov_btn_login"):
