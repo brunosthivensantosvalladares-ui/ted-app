@@ -251,17 +251,13 @@ if not st.session_state["logado"]:
         # ALTERNÂNCIA ENTRE LOGIN E CADASTRO (Centralizado pelo CSS acima)
         aba = st.radio("Selecione uma opção", ["Acessar", "Criar Conta"], horizontal=True, label_visibility="collapsed")
         
-        # Dentro da aba "Acessar", onde está o erro de bloqueio:
-if res[3] < hoje and res[4] != 'ativo':
-    st.error(f"⚠️ Acesso bloqueado: Período de teste expirado em {res[3].strftime('%d/%m/%Y')}.")
-    
-    # Criamos uma variável persistente para o painel
-    if st.button("Renove agora a sua assinatura", use_container_width=True, key="renov_btn_login"):
-        st.session_state["show_pay_login"] = True
-    
-    # Se a variável for True, o painel aparece e fica lá
-    if st.session_state.get("show_pay_login"):
-        exibir_painel_pagamento_pro("login")
+         if aba == "Acessar":
+            with st.container(border=True):
+                user_input = st.text_input("E-mail ou Usuário", key="u_log").lower()
+                pw_input = st.text_input("Senha", type="password", key="p_log")
+                if st.button(f"Acessar Painel {NOME_SISTEMA}", use_container_width=True, type="primary"):
+                    engine = get_engine()
+                    inicializar_banco()
                     
                     # 1. VERIFICAÇÃO DE USUÁRIOS MASTER (ESTÁTICOS)
                     masters = {
