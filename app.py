@@ -1426,7 +1426,7 @@ else:
             pass
         return int(qtd_atrasadas), int(qtd_chamados), int(qtd_preventivas)
 
-   with st.sidebar:
+       with st.sidebar:
         st.markdown(f"""
             <div style='text-align: center; margin-top: -1.2rem; padding: 0 0 2px 0;'>
                 <div class='logo-container-circular' style='width: 90px; height: 90px;'>
