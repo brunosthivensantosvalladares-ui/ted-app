@@ -2591,7 +2591,7 @@ else:
         c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
 
         if not df_a.empty and len(p_sel) == 2:
-            df_a['data'] = pd.to_datetime(df_a['data']).dt.date
+            df_a['data'] = pd.to_datetime(df_a['data'], errors='coerce').dt.date
             df_f = df_a[(df_a['data'] >= p_sel[0]) & (df_a['data'] <= p_sel[1])].copy()
             
             if f_area != "Todas": df_f = df_f[df_f['area'] == f_area]
