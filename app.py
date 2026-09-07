@@ -2440,6 +2440,7 @@ else:
     elif "Agenda Principal" in aba_ativa:
         st.subheader("📅 Cronograma Geral de Manutenções")
         
+        # --- BLOCO DE MÉTRICAS SEGURO (NÃO BLOQUEIA MAIS A TELA) ---
         try:
             df_stats = pd.read_sql(text("SELECT data, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": str(emp_id)})
             if not df_stats.empty:
@@ -2453,27 +2454,10 @@ else:
                 with m3: st.metric("Pendentes", len(df_hoje[df_hoje['realizado'] == False]))
                 st.divider()
         except Exception:
-            st.warning("⚠️ O banco de dados está iniciando. Aguarde alguns segundos.")
-            st.stop()
+            # Se der erro ou a tabela estiver vazia, exibe um aviso suave mas continua a execução da página
+            st.info("ℹ️ Nenhuma métrica para exibir ou banco inicializando. A agenda está pronta para uso abaixo.")
+            st.divider()
 
-        try:
-            df_agenda = carregar_tarefas_empresa(emp_id)
-            if not df_agenda.empty:
-                df_agenda['Nº OS'] = df_agenda['numero_os'].astype(str).replace(['None', 'nan', 'None.0'], '')
-                df_agenda['Nº OS'] = df_agenda['Nº OS'].str.replace('.0', '', regex=False)
-                # Reorganiza as colunas para colocar 'Nº OS' logo no início
-                cols_ordenadas_agenda = [c for c in df_agenda.columns if c not in ['Nº OS', 'id', 'empresa_id']]
-                cols_agenda_final = ['Nº OS'] + cols_ordenadas_agenda
-                if 'id' in df_agenda.columns:
-                    cols_agenda_final.append('id')
-                if 'empresa_id' in df_agenda.columns:
-                    cols_agenda_final.append('empresa_id')
-                df_agenda = df_agenda[[c for c in cols_agenda_final if c in df_agenda.columns]]
-            else:
-                st.info("Agenda vazia.")
-        except Exception as e:
-            st.error("Erro ao carregar agenda."); st.code(str(e))
-            
         with st.popover("💡 Como usar a Agenda?"):
             st.markdown("""
             1. Selecione a OS na lista.
@@ -2483,6 +2467,22 @@ else:
 
         if "exibir_bot" not in st.session_state:
             st.session_state.exibir_bot = True
+
+        st.markdown("""
+            <style>
+                div[data-testid="stPopoverBody"] { width: 850px !important; max-width: 90vw !important; }
+                .pulsing-dot {
+                    height: 10px; width: 10px; background-color: #ff4b4b;
+                    border-radius: 50%; display: inline-block; margin-right: 5px;
+                    box-shadow: 0 0 0 0 rgba(255, 75, 75, 1); animation: pulse 1.5s infinite;
+                }
+                @keyframes pulse {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.8); }
+                    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
         st.markdown("""
             <style>
