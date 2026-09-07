@@ -82,7 +82,7 @@ def formatar_acao_infinitivo(texto_bruto):
     
 # --- 1. CONFIGURAÇÕES E ESTILOS ---
 NOME_SISTEMA = "Updated Yesterday"
-SLOGAN = "Nós não dependemos de sorte.<br>Planejamento é o que nos move."[cite: 2]
+SLOGAN = "Nós não dependemos de sorte.<br>Planejamento é o que nos move."
 LOGO_URL = "https://i.postimg.cc/rwQs1cpc/Design-sem-nome-(2).png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
@@ -224,7 +224,7 @@ def renderizar_modulo_sincronizacao_offline(emp_id):
                             const payloadStr = JSON.stringify(pendentes);
                             const doc = window.parent.document;
                             
-                            # Busca robusta e imune ao CSS display: none
+                            // Busca robusta e imune ao CSS display: none
                             const inputOffline = doc.querySelector('input[aria-label="payload_offline"]');
                             
                             if (inputOffline) {{
@@ -707,9 +707,9 @@ html, body, [data-testid="stAppViewContainer"], .stApp {{
     font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif !important;
 }}
 
-# =========================================================
-#   1. OCULTAÇÃO DEFINITIVA DOS FORMULÁRIOS PONTE
-#   =========================================================
+/* =========================================================
+   1. OCULTAÇÃO DEFINITIVA DOS FORMULÁRIOS PONTE
+   ========================================================= */
 div[data-testid="stForm"]:has(input[aria-label="payload_offline"]),
 div[data-testid="stForm"]:has(input[aria-label="payload_cadastro"]),
 div[data-testid="stForm"]:has(input[aria-label="p_sync"]),
@@ -722,9 +722,9 @@ div[data-testid="stForm"]:has(input[aria-label="payload_baixa"]) {{
     border: none !important;
 }}
 
-# =========================================================
-#   2. ESTILIZAÇÃO GLOBAL NATIVA STREAMLIT (Campos, Labels e Inputs)
-#   =========================================================
+/* =========================================================
+   2. ESTILIZAÇÃO GLOBAL NATIVA STREAMLIT (Campos, Labels e Inputs)
+   ========================================================= */
 .main div[data-testid="stTextInput"] label p,
 .main div[data-testid="stSelectbox"] label p,
 .main div[data-testid="stNumberInput"] label p,
@@ -762,7 +762,7 @@ div[data-testid="stForm"]:has(input[aria-label="payload_baixa"]) {{
     box-shadow: 0 0 0 1px #9B783E !important;
 }}
 
-# Botões Primários Globais Estilo Premium
+/* Botões Primários Globais Estilo Premium */
 .main button[kind="primary"], .main button[data-testid="stBaseButton-primary"] {{
     background-color: #C5A059 !important;
     color: #FFFFFF !important;
@@ -785,9 +785,9 @@ div[data-testid="stForm"]:has(input[aria-label="payload_baixa"]) {{
     font-size: 14px !important;
 }}
 
-# =========================================================
-#   3. CABEÇALHO, TOPO FIXO E SIDEBAR
-#   =========================================================
+/* =========================================================
+   3. CABEÇALHO, TOPO FIXO E SIDEBAR
+   ========================================================= */
 header[data-testid="stHeader"] {{
     background: transparent !important;
     visibility: visible !important;
@@ -1426,7 +1426,7 @@ else:
             pass
         return int(qtd_atrasadas), int(qtd_chamados), int(qtd_preventivas)
 
-    with st.sidebar:
+   with st.sidebar:
         st.markdown(f"""
             <div style='text-align: center; margin-top: -1.2rem; padding: 0 0 2px 0;'>
                 <div class='logo-container-circular' style='width: 90px; height: 90px;'>
@@ -1437,6 +1437,8 @@ else:
             </div>
         """, unsafe_allow_html=True)
         st.divider()
+        
+        st.markdown(f"<div class='sidebar-nav-title'>{tr('NAVEGAÇÃO')}</div>", unsafe_allow_html=True)
         
         st.markdown(f"<div class='sidebar-nav-title'>{tr('NAVEGAÇÃO')}</div>", unsafe_allow_html=True)
 
@@ -2469,6 +2471,22 @@ else:
 
         if "exibir_bot" not in st.session_state:
             st.session_state.exibir_bot = True
+
+        st.markdown("""
+            <style>
+                div[data-testid="stPopoverBody"] { width: 850px !important; max-width: 90vw !important; }
+                .pulsing-dot {
+                    height: 10px; width: 10px; background-color: #ff4b4b;
+                    border-radius: 50%; display: inline-block; margin-right: 5px;
+                    box-shadow: 0 0 0 0 rgba(255, 75, 75, 1); animation: pulse 1.5s infinite;
+                }
+                @keyframes pulse {
+                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.8); }
+                    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); }
+                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+                }
+            </style>
+        """, unsafe_allow_html=True)
 
         st.markdown("""
             <style>
