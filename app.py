@@ -1439,6 +1439,8 @@ else:
         st.divider()
         
         st.markdown(f"<div class='sidebar-nav-title'>{tr('NAVEGAÇÃO')}</div>", unsafe_allow_html=True)
+        
+        st.markdown(f"<div class='sidebar-nav-title'>{tr('NAVEGAÇÃO')}</div>", unsafe_allow_html=True)
 
         for indice, opcao in enumerate(opcoes):
             st.button(
