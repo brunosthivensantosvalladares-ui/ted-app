@@ -82,7 +82,7 @@ def formatar_acao_infinitivo(texto_bruto):
     
 # --- 1. CONFIGURAÇÕES E ESTILOS ---
 NOME_SISTEMA = "Updated Yesterday"
-SLOGAN = "Seu controle. Nossa prioridade."
+SLOGAN = "Nós não dependemos de sorte. Planejamento é o que nos move."
 LOGO_URL = "https://i.postimg.cc/rwQs1cpc/Design-sem-nome-(2).png"
 ORDEM_AREAS = ["Motorista", "Borracharia", "Mecânica", "Elétrica", "Chapeamento", "Limpeza"]
 LISTA_TURNOS = ["Não definido", "Dia", "Noite"]
@@ -597,7 +597,7 @@ def gerar_pdf_manual_oficial_pro():
     pdf.ln(10)
     pdf.set_font("Arial", "I", 14)
     pdf.set_text_color(80, 80, 80)
-    pdf.cell(190, 10, "Seu Controle. Nossa Prioridade.", ln=True, align='C')
+    pdf.cell(190, 10, "Nós não dependemos de sorte. Planejamento é o que nos move.", ln=True, align='C')
     pdf.add_page()
     pdf.set_font("Arial", "B", 18); pdf.set_text_color(27, 34, 76)
     pdf.cell(190, 15, "SUMARIO", ln=True); pdf.ln(10)
