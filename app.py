@@ -3214,9 +3214,8 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram. 
-                2. **Aprovação:** Marque a caixa **Aprovar?** para o Mr. Halley dar o diagnóstico de cada veículo!
-                3. **Planejamento:** Defina o Executor, o Tipo de OS e a Área com base nos pareceres.
-                4. **Finalizar:** Clique em **Processar Agendamentos**.
+                2. **Configuração:** Defina a Área, o Tipo de OS, o Executor e os horários desejados.
+                3. **Finalizar:** Marque os chamados que deseja aprovar e clique em **Processar Agendamentos em Lote**.
             """)
             
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": str(emp_id)})
@@ -3228,11 +3227,20 @@ else:
                 df_p['Executor'] = ""
                 df_p['Area_Destino'] = "Mecânica"
                 df_p['Data_Programada'] = datetime.now().date()
-                df_p['Inicio'] = "00:00"
-                df_p['Fim'] = "00:00"
+                df_p['Inicio'] = "08:00"
+                df_p['Fim'] = "10:00"
                 
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
+
+            # Busca lista de executores recentes para sugestão inteligente
+            executores_sugeridos = []
+            try:
+                df_exec_ant = pd.read_sql(text("SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' LIMIT 10"), engine, params={"eid": str(emp_id)})
+                if not df_exec_ant.empty:
+                    executores_sugeridos = df_exec_ant['executor'].tolist()
+            except Exception:
+                pass
             
             if "editor_chamados" in st.session_state and st.session_state.editor_chamados.get("edited_rows"):
                 alteracoes = st.session_state.editor_chamados["edited_rows"]
@@ -3285,19 +3293,23 @@ else:
                 use_container_width=True, 
                 column_config={
                     "Aprovar": st.column_config.CheckboxColumn("Aprovar?", width="small"), 
-                    "prefixo": st.column_config.TextColumn("Prefixo", width="small"),
-                    "descricao": st.column_config.TextColumn("Descrição", width="large"),
-                    "motorista": st.column_config.TextColumn("Solicitante", width="medium"),
+                    "prefixo": st.column_config.TextColumn("Prefixo", width="small", disabled=True),
+                    "descricao": st.column_config.TextColumn("Descrição", width="large", disabled=True),
+                    "motorista": st.column_config.TextColumn("Solicitante", width="medium", disabled=True),
                     "Tipo_OS": st.column_config.SelectboxColumn("Tipo de OS", options=LISTA_TIPOS_OS, width="medium"),
                     "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="medium"), 
+                    "Executor": st.column_config.TextColumn(f"Executor (Sugestões: {', '.join(executores_sugeridos[:3]) if executores_sugeridos else 'Nenhum'})"),
                     "Data_Programada": st.column_config.DateColumn("Data Programada", width="medium"), 
+                    "Inicio": st.column_config.TextColumn("Início (Ex: 08:00)"),
+                    "Fim": st.column_config.TextColumn("Fim (Ex: 10:00)"),
                     "data_solicitacao": None, 
                     "id": None
                 }, 
                 key="editor_chamados"
             )
             
-            if st.button("Processar Agendamentos", type="primary", key="btn_proc_agendamentos"):
+            if st.button("🚀 Processar Agendamentos em Lote", type="primary", key="btn_proc_agendamentos"):
+                st.session_state.df_ap_work = ed_c
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 
                 if not selecionados.empty:
@@ -3310,9 +3322,9 @@ else:
                             conn.execute(
                                 text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, id_chamado, origem, empresa_id, numero_os) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', :ic, 'Chamado', :eid, :nos)"), 
                                 {
-                                    "dt": str(r['Data_Programada']), "ex": r['Executor'], "pr": r['prefixo'], 
-                                    "ti": r['Inicio'], "tf": r['Fim'], "ds": desc_com_med, "ar": r['Area_Destino'], 
-                                    "tp": r['Tipo_OS'], "ic": r['id'], "eid": str(emp_id), "nos": v_os
+                                    "dt": str(r['Data_Programada']), "ex": str(r['Executor']), "pr": str(r['prefixo']), 
+                                    "ti": str(r['Inicio']), "tf": str(r['Fim']), "ds": desc_com_med, "ar": str(r['Area_Destino']), 
+                                    "tp": str(r['Tipo_OS']), "ic": int(r['id']), "eid": str(emp_id), "nos": v_os
                                 }
                             )
                             conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id AND empresa_id = :eid"), {"id": int(r['id']), "eid": str(emp_id)})
@@ -3322,10 +3334,11 @@ else:
                     if 'analises_halley' in st.session_state: del st.session_state.analises_halley
                         
                     st.cache_data.clear()
-                    st.success("✅ Agendamentos processados e enviados à Agenda Principal!")
+                    st.success("✅ Todos os agendamentos selecionados foram processados e enviados à Agenda Principal!")
+                    time_module.sleep(0.5)
                     st.rerun()
                 else:
-                    st.warning("⚠️ Selecione ao menos um chamado na coluna 'Aprovar?' antes de processar.")
+                    st.warning("⚠️ Marque a caixa 'Aprovar?' em ao menos um chamado antes de processar.")
         else: 
             st.info("Nenhum chamado pendente no momento.")
             
