@@ -3214,7 +3214,7 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram[cite: 2]. 
-                2. **Configuração:** Defina a Área, o Tipo de OS, escolha o Executor na lista e digite os horários apenas com números (ex: `800`).
+                2. **Configuração:** Ajuste a Área, o Tipo de OS, escolha o Executor na lista e digite os horários apenas com números (ex: `800` vira `08:00`).
                 3. **Finalizar:** Marque os chamados que deseja aprovar e clique em **Processar Agendamentos em Lote**[cite: 2].
             """)
             
@@ -3242,6 +3242,17 @@ else:
             except Exception:
                 pass
             
+            # Função auxiliar para formatar horários com dois pontos instantaneamente
+            def formatar_hora_simples(val):
+                v = ''.join(filter(str.isdigit, str(val)))
+                if len(v) == 3:
+                    return f"0{v[0]}:{v[1:]}"
+                elif len(v) == 4:
+                    return f"{v[:2]}:{v[2:]}"
+                elif len(v) == 1 or len(v) == 2:
+                    return f"{v.zfill(2)}:00"
+                return str(val) if val else "08:00"
+
             if "editor_chamados" in st.session_state and st.session_state.editor_chamados.get("edited_rows"):
                 alteracoes = st.session_state.editor_chamados["edited_rows"]
                 
@@ -3254,6 +3265,12 @@ else:
                         dados_linha = st.session_state.df_ap_work.iloc[c_idx]
                         id_chamado = dados_linha['id']
                         
+                        # Formata automaticamente os horários no DataFrame conforme o usuário digita
+                        if "Inicio" in campos:
+                            st.session_state.df_ap_work.loc[c_idx, 'Inicio'] = formatar_hora_simples(campos["Inicio"])
+                        if "Fim" in campos:
+                            st.session_state.df_ap_work.loc[c_idx, 'Fim'] = formatar_hora_simples(campos["Fim"])
+
                         if campos.get("Aprovar") is True:
                             ja_analisado = any(a["id"] == id_chamado for a in st.session_state.analises_halley)
                             
@@ -3292,16 +3309,16 @@ else:
                 hide_index=True, 
                 use_container_width=True, 
                 column_config={
-                    "Aprovar": st.column_config.CheckboxColumn("Aprovar?", width="small"), 
-                    "prefixo": st.column_config.TextColumn("Prefixo", width="small", disabled=True),
-                    "descricao": st.column_config.TextColumn("Descrição", width="large", disabled=True),
-                    "motorista": st.column_config.TextColumn("Solicitante", width="medium", disabled=True),
-                    "Tipo_OS": st.column_config.SelectboxColumn("Tipo de OS", options=LISTA_TIPOS_OS, width="medium"),
-                    "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="medium"), 
+                    "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
+                    "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
+                    "descricao": st.column_config.TextColumn("Descrição do Problema", width="large", disabled=True),
+                    "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
+                    "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
+                    "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
                     "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="medium"),
-                    "Data_Programada": st.column_config.DateColumn("Data Programada", width="medium"), 
-                    "Inicio": st.column_config.TextColumn("Início (ex: 800)"),
-                    "Fim": st.column_config.TextColumn("Fim (ex: 1000)"),
+                    "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
+                    "Inicio": st.column_config.TextColumn("Início", width="small"),
+                    "Fim": st.column_config.TextColumn("Fim", width="small"),
                     "data_solicitacao": None, 
                     "id": None
                 }, 
@@ -3313,17 +3330,6 @@ else:
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 
                 if not selecionados.empty:
-                    # Função auxiliar para formatar horários sem exigir dois pontos
-                    def formatar_hora_simples(val):
-                        v = ''.join(filter(str.isdigit, str(val)))
-                        if len(v) == 3:
-                            return f"0{v[0]}:{v[1:]}"
-                        elif len(v) == 4:
-                            return f"{v[:2]}:{v[2:]}"
-                        elif len(v) == 1 or len(v) == 2:
-                            return f"{v.zfill(2)}:00"
-                        return str(val) if val else "00:00"
-
                     with engine.connect() as conn:
                         for _, r in selecionados.iterrows():
                             v_os = obter_proxima_os(engine, emp_id)
@@ -3352,7 +3358,7 @@ else:
                     time_module.sleep(0.5)
                     st.rerun()
                 else:
-                    st.warning("⚠️ Marque a caixa 'Aprovar?' em ao menos um chamado antes de processar.")
+                    st.warning("⚠️ Marque a caixa 'OK' em ao menos um chamado antes de processar.")
         else: 
             st.info("Nenhum chamado pendente no momento.")
             
