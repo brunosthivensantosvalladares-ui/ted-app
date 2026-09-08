@@ -2816,7 +2816,7 @@ else:
             df_lista = carregar_tarefas_empresa(emp_id)
             
             if not df_lista.empty:
-                df_lista['data'] = pd.to_datetime(df_lista['data']).dt.date
+                df_lista['data'] = pd.to_datetime(df_lista['data'], errors='coerce').dt.date
                 df_lista['Nº OS'] = df_lista['numero_os'].astype(str).replace(['None', 'nan', 'None.0'], 'S/N').str.replace('.0', '', regex=False)
                 df_lista['Exc'] = False
                 
@@ -3214,7 +3214,7 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram[cite: 2]. 
-                2. **Configuração:** Ajuste a Área, o Tipo de OS, escolha o Executor na lista e digite os horários apenas com números (ex: `800` vira `08:00`).
+                2. **Configuração:** Ajuste a Área, o Tipo de OS, escolha o Executor na lista e digite os horários apenas com números (ex: `800` ou `0800`).
                 3. **Finalizar:** Marque os chamados que deseja aprovar e clique em **Processar Agendamentos em Lote**[cite: 2].
             """)
             
@@ -3223,6 +3223,9 @@ else:
         if not df_p.empty:
             if 'df_ap_work' not in st.session_state:
                 df_p['Aprovar'] = False
+                df_p['prefixo'] = df_p['prefixo'].astype(str)
+                df_p['descricao'] = df_p['descricao'].astype(str)
+                df_p['motorista'] = df_p['motorista'].astype(str)
                 df_p['Tipo_OS'] = "Corretiva"
                 df_p['Executor'] = ""
                 df_p['Area_Destino'] = "Mecânica"
@@ -3242,7 +3245,7 @@ else:
             except Exception:
                 pass
             
-            # Função auxiliar para formatar horários com dois pontos instantaneamente
+            # Função robusta para formatar qualquer string de horário para HH:MM
             def formatar_hora_simples(val):
                 v = ''.join(filter(str.isdigit, str(val)))
                 if len(v) == 3:
@@ -3251,7 +3254,7 @@ else:
                     return f"{v[:2]}:{v[2:]}"
                 elif len(v) == 1 or len(v) == 2:
                     return f"{v.zfill(2)}:00"
-                return str(val) if val else "08:00"
+                return str(val) if val and ":" in str(val) else "08:00"
 
             if "editor_chamados" in st.session_state and st.session_state.editor_chamados.get("edited_rows"):
                 alteracoes = st.session_state.editor_chamados["edited_rows"]
@@ -3264,12 +3267,6 @@ else:
                     if c_idx < len(st.session_state.df_ap_work):
                         dados_linha = st.session_state.df_ap_work.iloc[c_idx]
                         id_chamado = dados_linha['id']
-                        
-                        # Formata automaticamente os horários no DataFrame conforme o usuário digita
-                        if "Inicio" in campos:
-                            st.session_state.df_ap_work.loc[c_idx, 'Inicio'] = formatar_hora_simples(campos["Inicio"])
-                        if "Fim" in campos:
-                            st.session_state.df_ap_work.loc[c_idx, 'Fim'] = formatar_hora_simples(campos["Fim"])
 
                         if campos.get("Aprovar") is True:
                             ja_analisado = any(a["id"] == id_chamado for a in st.session_state.analises_halley)
@@ -3304,6 +3301,7 @@ else:
                         elif campos.get("Aprovar") is False:
                             st.session_state.analises_halley = [a for a in st.session_state.analises_halley if a["id"] != id_chamado]
 
+            # Editor compactado com larguras otimizadas para caber na tela
             ed_c = st.data_editor(
                 st.session_state.df_ap_work, 
                 hide_index=True, 
@@ -3311,11 +3309,11 @@ else:
                 column_config={
                     "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
                     "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
-                    "descricao": st.column_config.TextColumn("Descrição do Problema", width="large", disabled=True),
+                    "descricao": st.column_config.TextColumn("Descrição", width="medium", disabled=True),
                     "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
                     "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
                     "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
-                    "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="medium"),
+                    "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="small"),
                     "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
                     "Inicio": st.column_config.TextColumn("Início", width="small"),
                     "Fim": st.column_config.TextColumn("Fim", width="small"),
@@ -3336,6 +3334,7 @@ else:
                             h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], r['Data_Programada'])
                             desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
                             
+                            # Formata os horários para garantir o padrão HH:MM com dois pontos ao salvar
                             t_inicio = formatar_hora_simples(r['Inicio'])
                             t_fim = formatar_hora_simples(r['Fim'])
 
