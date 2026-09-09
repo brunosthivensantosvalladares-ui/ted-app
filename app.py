@@ -3048,8 +3048,9 @@ else:
                 st.info("Nenhum plano cadastrado.")
 
         else:
+            # --- SUB-ABA 2: GERAÇÃO AUTOMÁTICA DE OS (COM SELEÇÃO EM LOTE) ---
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
-            st.info("💡 Acompanhe os vencimentos de planos por veículo, defina os dados do agendamento e gere as OSs em lote.")
+            st.info("💡 Acompanhe os vencimentos de planos por veículo e defina os dados do agendamento. **Dica de Horários:** Digite apenas os números (ex: 800, salva como 08:00).")
 
             # Injeta CSS para diminuir a fonte da tabela e otimizar o espaço para caber tudo sem rolar para o lado
             st.markdown("""
@@ -3061,8 +3062,27 @@ else:
                     div[data-testid="stDataEditor"] th div {
                         padding: 2px 4px !important;
                     }
+                    div[data-testid="stDataEditor"] div[data-baseweb="input"] input,
+                    div[data-testid="stDataEditor"] td div {
+                        color: #2E7D32 !important;
+                        font-weight: 700 !important;
+                    }
                 </style>
             """, unsafe_allow_html=True)
+
+            def formatar_hora_simples(val):
+                if not val or str(val).strip() in ["None", "nan", ""]:
+                    return "00:00"
+                v = ''.join(filter(str.isdigit, str(val)))
+                if len(v) == 3:
+                    return f"0{v[0]}:{v[1:]}"
+                elif len(v) == 4:
+                    return f"{v[:2]}:{v[2:]}"
+                elif len(v) == 1 or len(v) == 2:
+                    return f"{v.zfill(2)}:00"
+                elif ":" in str(val):
+                    return str(val)
+                return "00:00"
 
             try:
                 df_planos_dash = carregar_planos_master_empresa(emp_id)
@@ -3149,11 +3169,11 @@ else:
                                 "Data da Preventiva": data_os_reg if (crit == "Dias" or ultima_preventiva_val > 0) else "-",
                                 "Próxima Preventiva": f"{proxima_preventiva_val:,.1f} {'km' if crit=='Odômetro' else 'h'}".replace(",", ".") if (crit != "Dias" and proxima_preventiva_val > 0) else "-",
                                 "Saldo Restante": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando",
-                                # Novos campos solicitados para configuração direta na tabela:
+                                # Campos operacionais com predefinição correta:
                                 "Área": area_padrao_plano,
                                 "Executor": "",
-                                "Início": "08:00",
-                                "Fim": "10:00",
+                                "Início": "00:00",
+                                "Fim": "00:00",
                                 "Data Agendada": datetime.now().date(),
                                 "_saldo_ordem": saldo_restante
                             })
@@ -3177,19 +3197,17 @@ else:
                                     "Critério": st.column_config.TextColumn("Critério", width="small", disabled=True),
                                     "Intervalo Padrão": st.column_config.NumberColumn("Intervalo", width="small"),
                                     "Última Leitura": st.column_config.TextColumn("Últ. Leitura", width="small", disabled=True),
-                                    "Data Ref.": st.column_config.TextColumn("Dt. Ref.", width="small", disabled=True),
-                                    # Colunas reduzidas pela metade (width="small"):
+                                    "Data Ref.": None,
                                     "Última Preventiva (Leitura)": st.column_config.TextColumn("Últ. Prev.", width="small", disabled=True),
                                     "Próxima Preventiva": st.column_config.TextColumn("Prox. Prev.", width="small", disabled=True),
                                     "Saldo Restante": st.column_config.TextColumn("Saldo", width="small", disabled=True),
-                                    # Novos campos interativos operacionais:
+                                    # Campos editáveis compactos:
                                     "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"),
                                     "Executor": st.column_config.TextColumn("Executor", width="small"),
                                     "Início": st.column_config.TextColumn("Início", width="small"),
                                     "Fim": st.column_config.TextColumn("Fim", width="small"),
                                     "Data Agendada": st.column_config.DateColumn("Data", width="small"),
-                                    "Data da Preventiva": None,
-                                    "Data Ref.": None
+                                    "Data da Preventiva": None
                                 },
                                 hide_index=True, use_container_width=True, key="editor_geracao_lote"
                             )
@@ -3205,6 +3223,9 @@ else:
                                             h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['Veículo'], str(r['Data Agendada']))
                                             desc_final_os = f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
                                             
+                                            t_inicio = formatar_hora_simples(r['Início'])
+                                            t_fim = formatar_hora_simples(r['Fim'])
+
                                             conn.execute(
                                                 text("""
                                                     INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
@@ -3214,8 +3235,8 @@ else:
                                                     "dt": str(r['Data Agendada']), 
                                                     "ex": str(r['Executor'] or 'A definir'), 
                                                     "pr": str(r['Veículo']), 
-                                                    "ti": str(r['Início'] or '08:00'), 
-                                                    "tf": str(r['Fim'] or '10:00'), 
+                                                    "ti": t_inicio, 
+                                                    "tf": t_fim, 
                                                     "ds": desc_final_os, 
                                                     "ar": str(r['Área'] or 'Mecânica'), 
                                                     "tp": str(r['Tipo']), 
