@@ -1797,13 +1797,7 @@ else:
 
     aba_ativa = st.session_state.opcao_selecionada
     
-    # Garante que o Mr. Halley não abre sozinho ao trocar de abas
-if "mr_halley_aberto" not in st.session_state:
-    st.session_state.mr_halley_aberto = False
-
-    aba_ativa = st.session_state.opcao_selecionada
-
-    if "Dashboard" in aba_ativa:
+elif "Dashboard" in aba_ativa:
         st.markdown("<h4 style='color: #2D241E; font-weight: 700; margin-bottom: 16px;'>Cronograma Geral de Manutenção</h4>", unsafe_allow_html=True)
         
         df_dash_stats = carregar_tarefas_empresa(emp_id)
@@ -1827,7 +1821,6 @@ if "mr_halley_aberto" not in st.session_state:
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-
         with col_m2:
             st.markdown(f"""
                 <div class='metric-card'>
@@ -1838,7 +1831,6 @@ if "mr_halley_aberto" not in st.session_state:
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-
         with col_m3:
             st.markdown(f"""
                 <div class='metric-card'>
@@ -1851,30 +1843,6 @@ if "mr_halley_aberto" not in st.session_state:
             """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        col_filtro, col_exp = st.columns([0.55, 0.45])
-        
-        with col_filtro:
-            with st.container(border=True):
-                st.markdown("<h5 style='color: #2D241E;'>🔍 Filtro Operacional</h5>", unsafe_allow_html=True)
-                p_sel_dash = st.date_input("Período", [datetime.now().date(), datetime.now().date() + timedelta(days=1)], key="dash_dt_filter")
-                f_area_dash = st.selectbox("Área", ["Todas"] + ORDEM_AREAS, key="dash_f_area")
-                f_turno_dash = st.selectbox("Turno", ["Todos"] + LISTA_TURNOS, key="dash_f_turno")
-
-        with col_exp:
-            with st.container(border=True):
-                st.markdown("<h5 style='color: #2D241E;'>📤 Exportações Rápidas</h5>", unsafe_allow_html=True)
-                c_btn_pdf, c_btn_xls = st.columns(2)
-                with c_btn_pdf:
-                    st.download_button("📄 PDF", gerar_pdf_periodo(pd.DataFrame(), datetime.now().date(), datetime.now().date()), "Relatorio.pdf", use_container_width=True, key="dash_pdf_btn")
-                with c_btn_xls:
-                    st.download_button("📊 EXCEL", to_excel_native(pd.DataFrame()), "Relatorio.xlsx", use_container_width=True, key="dash_xls_btn")
-
-            with st.expander("💡 Como usar a Agenda?", expanded=False):
-                st.write("""
-                1. Selecione a Ordem de Serviço desejada na lista.
-                2. Preencha os horários de início e fim da janela logística.
-                3. Finalize a execução na aba de baixa técnica para atualizar os relatórios em tempo real.
-                """)
 
         # --- PAINEL DE MONITORAMENTO DE VENCIMENTOS DE PLANOS NO DASHBOARD ---
         st.divider()
@@ -1883,11 +1851,9 @@ if "mr_halley_aberto" not in st.session_state:
 
         try:
             df_planos_dash = carregar_planos_master_empresa(emp_id)
-
             if not df_planos_dash.empty:
                 lista_status_frota = []
                 avisos_pendencia_medidor = set()
-                
                 df_medidores_all = carregar_medidores_empresa(emp_id)
                 df_tarefas_all = carregar_tarefas_empresa(emp_id)
                 
@@ -1898,24 +1864,15 @@ if "mr_halley_aberto" not in st.session_state:
                     
                     for pref in prefs:
                         med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()]
-                        med_hor_reg = 0.0
-                        med_odo_reg = 0.0
-                        data_med_reg = "-"
+                        med_hor_reg, med_odo_reg, data_med_reg = 0.0, 0.0, "-"
                         if not med_veiculo.empty:
                             primeira_med = med_veiculo.iloc[0]
                             med_hor_reg = float(primeira_med.get('horimetro') or 0.0)
                             med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                             data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                        tarefas_veiculo = df_tarefas_all[
-                            (df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & 
-                            (df_tarefas_all['realizado'] == True)
-                        ]
-                        
-                        os_hor_reg = 0.0
-                        os_odo_reg = 0.0
-                        data_os_reg = "-"
-                        numero_os_recente = "-"
+                        tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)]
+                        os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
                         
                         if not tarefas_veiculo.empty:
                             primeira_tarefa = tarefas_veiculo.iloc[0]
@@ -1923,96 +1880,32 @@ if "mr_halley_aberto" not in st.session_state:
                             numero_os_recente = str(primeira_tarefa.get('numero_os') or "").replace('.0', '')
                             desc_os = str(primeira_tarefa.get('descricao') or "")
                             try:
-                                if "Horímetro:" in desc_os:
-                                    h_str = desc_os.split("Horímetro:")[1].split("h")[0].strip()
-                                    os_hor_reg = float(h_str)
-                                if "Odômetro:" in desc_os:
-                                    o_str = desc_os.split("Odômetro:")[1].split("km")[0].strip()
-                                    os_odo_reg = float(o_str)
-                            except Exception:
-                                pass
+                                if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
+                                if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
+                            except Exception: pass
 
-                        if data_os_reg != "-" and ((crit == "Horímetro" and os_hor_reg == 0.0) or (crit == "Odômetro" and os_odo_reg == 0.0)):
-                            if not med_veiculo.empty:
-                                dt_os_dt = pd.to_datetime(data_os_reg, errors='coerce')
-                                if pd.notnull(dt_os_dt):
-                                    med_veiculo_copy = med_veiculo.copy()
-                                    med_veiculo_copy['dt_obj'] = pd.to_datetime(med_veiculo_copy['data_leitura'], errors='coerce')
-                                    med_veiculo_copy['diff_dias'] = (med_veiculo_copy['dt_obj'] - dt_os_dt).abs().dt.days
-                                    med_veiculo_copy = med_veiculo_copy.sort_values(by='diff_dias')
-                                    if not med_veiculo_copy.empty:
-                                        closest = med_veiculo_copy.iloc[0]
-                                        if crit == "Horímetro":
-                                            os_hor_reg = float(closest.get('horimetro') or 0.0)
-                                        elif crit == "Odômetro":
-                                            os_odo_reg = float(closest.get('odometro') or 0.0)
+                        tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
+                        if not tem_leitura_sistema and crit in ["Horímetro", "Odômetro"]: avisos_pendencia_medidor.add(pref)
 
-                        tem_leitura_sistema = False
-                        if crit == "Dias":
-                            tem_leitura_sistema = True
-                        elif crit == "Horímetro":
-                            if med_hor_reg > 0 or os_hor_reg > 0:
-                                tem_leitura_sistema = True
-                        elif crit == "Odômetro":
-                            if med_odo_reg > 0 or os_odo_reg > 0:
-                                tem_leitura_sistema = True
+                        ultima_leitura_geral = max(med_hor_reg, os_hor_reg) if crit == "Horímetro" else (max(med_odo_reg, os_odo_reg) if crit == "Odômetro" else 0.0)
+                        ultima_preventiva_val = os_hor_reg if crit == "Horímetro" else (os_odo_reg if crit == "Odômetro" else 0.0)
 
-                        if not tem_leitura_sistema and crit in ["Horímetro", "Odômetro"]:
-                            avisos_pendencia_medidor.add(pref)
-
-                        if crit == "Horímetro":
-                            if med_hor_reg >= os_hor_reg:
-                                ultima_leitura_geral = med_hor_reg
-                                data_leitura_geral = data_med_reg
-                            else:
-                                ultima_leitura_geral = os_hor_reg
-                                data_leitura_geral = data_os_reg
-                        elif crit == "Odômetro":
-                            if med_odo_reg >= os_odo_reg:
-                                ultima_leitura_geral = med_odo_reg
-                                data_leitura_geral = data_med_reg
-                            else:
-                                ultima_leitura_geral = os_odo_reg
-                                data_leitura_geral = data_os_reg
+                        if crit in ["Horímetro", "Odômetro"] and tem_leitura_sistema and ultima_preventiva_val > 0 and ultima_leitura_geral >= ultima_preventiva_val:
+                            rodado_desde_ultima = ultima_leitura_geral - ultima_preventiva_val
+                            saldo_restante = intervalo_limite - (rodado_desde_ultima % intervalo_limite)
+                            if saldo_restante <= 0: saldo_restante = intervalo_limite
+                            blocos = int(rodado_desde_ultima // intervalo_limite) + 1
+                            proxima_preventiva_val = ultima_preventiva_val + (blocos * intervalo_limite)
+                        elif crit in ["Horímetro", "Odômetro"] and tem_leitura_sistema:
+                            saldo_restante = intervalo_limite - (ultima_leitura_geral % intervalo_limite)
+                            if saldo_restante == 0: saldo_restante = intervalo_limite
+                            proxima_preventiva_val = ultima_leitura_geral + saldo_restante
                         else:
-                            ultima_leitura_geral = 0.0
-                            data_leitura_geral = data_med_reg if data_med_reg != "-" else data_os_reg
-
-                        if crit == "Horímetro":
-                            ultima_preventiva_val = os_hor_reg
-                        elif crit == "Odômetro":
-                            ultima_preventiva_val = os_odo_reg
-                        else:
-                            ultima_preventiva_val = 0.0
-
-                        atual_val = ultima_leitura_geral
-                        if crit in ["Horímetro", "Odômetro"]:
-                            if not tem_leitura_sistema:
-                                saldo_restante = 0.0
-                                proxima_preventiva_val = 0.0
-                            elif ultima_preventiva_val > 0 and atual_val >= ultima_preventiva_val:
-                                rodado_desde_ultima = atual_val - ultima_preventiva_val
-                                saldo_restante = intervalo_limite - (rodado_desde_ultima % intervalo_limite)
-                                if saldo_restante <= 0:
-                                    saldo_restante = intervalo_limite
-                                blocos = int(rodado_desde_ultima // intervalo_limite) + 1
-                                proxima_preventiva_val = ultima_preventiva_val + (blocos * intervalo_limite)
-                            else:
-                                saldo_restante = intervalo_limite - (atual_val % intervalo_limite)
-                                if saldo_restante == 0:
-                                    saldo_restante = intervalo_limite
-                                proxima_preventiva_val = atual_val + saldo_restante
-                        else:
-                            saldo_restante = intervalo_limite
-                            proxima_preventiva_val = 0.0
+                            saldo_restante, proxima_preventiva_val = intervalo_limite, 0.0
                         
                         lista_status_frota.append({
-                            "Plano": p['nome_plano'],
-                            "Tipo": p['tipo_os'],
-                            "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
-                            "Veículo": pref,
-                            "Critério": crit,
-                            "Intervalo Padrão": intervalo_limite,
+                            "Plano": p['nome_plano'], "Tipo": p['tipo_os'], "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
+                            "Veículo": pref, "Critério": crit, "Intervalo Padrão": intervalo_limite,
                             "Última Leitura": f"{ultima_leitura_geral:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_leitura_geral > 0) else ("-" if crit == "Dias" else "⚠️ Sem Leitura"),
                             "Data Ref.": data_leitura_geral if (crit == "Dias" or ultima_leitura_geral > 0) else "-",
                             "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
@@ -2022,23 +1915,11 @@ if "mr_halley_aberto" not in st.session_state:
                             "Saldo Restante Estimado": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando Leitura"
                         })
 
-                if avisos_pendencia_medidor:
-                    veiculos_str = ", ".join(sorted(avisos_pendencia_medidor))
-                    st.warning(
-                        f"💡 **Orientação de Medidor:** O(s) veículo(s) **{veiculos_str}** não possuem valores de horímetro/odômetro registrados. "
-                        f"Caso não tenha informado os valores durante a baixa da preventiva, certifique-se de que a leitura digitada na aba "
-                        f"**⚡ Alimentar Horímetros/Odômetros** seja o mais próxima possível da data de realização da preventiva. "
-                        f"O sistema utiliza os registros mais próximos como ponto de partida para os cálculos, e a alimentação contínua evita atrasos e distorções no saldo."
-                    )
-
                 df_status_final = pd.DataFrame(lista_status_frota)
                 if not df_status_final.empty:
                     df_status_final = df_status_final.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
-                    
-                    # Salva no session_state para reutilizar na aba de Geração Automática se necessário
                     st.session_state.df_vencimentos_cache = df_status_final
 
-                    # Tabela otimizada com colunas compactas e títulos quebrados para caber perfeitamente na tela
                     st.data_editor(
                         df_status_final,
                         column_config={
@@ -2055,10 +1936,7 @@ if "mr_halley_aberto" not in st.session_state:
                             "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium"),
                             "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium")
                         },
-                        hide_index=True,
-                        use_container_width=True,
-                        disabled=True,
-                        key="tabela_dashboard_compacta"
+                        hide_index=True, use_container_width=True, disabled=True, key="tabela_dashboard_compacta"
                     )
                 else:
                     st.info("Nenhum veículo vinculado aos planos cadastrados.")
