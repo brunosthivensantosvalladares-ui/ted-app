@@ -3268,7 +3268,7 @@ else:
                                 },
                                 hide_index=True, use_container_width=True, key="editor_geracao_lote"
                             )
-                            btn_gerar_lote = st.form_submit_button("🚀 Gerar OSs Selecionadas e Salvar Alterações", type="primary", use_container_width=True)
+                            btn_gerar_lote = st.form_submit_button("🚀 Gerar OSs Selecionadas e/ ou Salvar Alterações", type="primary", use_container_width=True)
 
                         if btn_gerar_lote:
                             with engine.connect() as conn:
@@ -3321,7 +3321,7 @@ else:
                                         )
                                 conn.commit()
                             st.cache_data.clear()
-                            st.success("✅ Alterações salvas e novas Ordens de Serviço geradas com sucesso!")
+                            st.success("✅ Alterações salvas / novas Ordens de Serviço geradas com sucesso!")
                             time_module.sleep(0.5)
                             st.rerun()
                     else:
