@@ -3049,7 +3049,36 @@ else:
 
         else:
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
-            st.info("💡 Acompanhe os vencimentos de planos por veículo, edite os dados diretamente na tabela e clique no botão abaixo para gerar novas OSs ou salvar atualizações. **Dica de Horários:** Digite apenas os números (ex: 800, salva como 08:00).")
+            
+            c_info_lote, c_btn_exec_lote = st.columns([0.75, 0.25])
+            with c_info_lote:
+                st.info("💡 Acompanhe os vencimentos de planos por veículo e defina os dados. **Dica de Horários:** Digite apenas os números (ex: 800, salva como 08:00).")
+            with c_btn_exec_lote:
+                with st.popover("➕ Novo Executor", use_container_width=True):
+                    novo_ex_lote = st.text_input("Nome do Executor", key="input_novo_exec_lote_aba")
+                    if st.button("Cadastrar", key="btn_cad_exec_lote_aba"):
+                        if novo_ex_lote.strip():
+                            try:
+                                with engine.connect() as conn:
+                                    conn.execute(text("""
+                                        CREATE TABLE IF NOT EXISTS executores (
+                                            id SERIAL PRIMARY KEY,
+                                            empresa_id VARCHAR(50),
+                                            nome VARCHAR(100)
+                                        )
+                                    """))
+                                    conn.execute(
+                                        text("INSERT INTO executores (empresa_id, nome) VALUES (:eid, :nome)"),
+                                        {"eid": str(emp_id), "nome": novo_ex_lote.strip()}
+                                    )
+                                    conn.commit()
+                                st.success(f"Executor cadastrado!")
+                                time_module.sleep(0.3)
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro: {e}")
+                        else:
+                            st.warning("Digite um nome.")
 
             # Injeta CSS para diminuir a fonte da tabela e otimizar o espaço para caber tudo sem rolar para o lado
             st.markdown("""
@@ -3083,6 +3112,24 @@ else:
                     return str(val)
                 return "00:00"
 
+            # Busca a lista unificada de executores do banco
+            executores_cadastrados = [""]
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS executores (
+                            id SERIAL PRIMARY KEY,
+                            empresa_id VARCHAR(50),
+                            nome VARCHAR(100)
+                        )
+                    """))
+                    conn.commit()
+                df_exec_db = pd.read_sql(text("SELECT DISTINCT nome as executor FROM executores WHERE empresa_id = :eid UNION SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
+                if not df_exec_db.empty:
+                    executores_cadastrados += df_exec_db['executor'].tolist()
+            except Exception:
+                pass
+
             try:
                 df_planos_dash = carregar_planos_master_empresa(emp_id)
                 if not df_planos_dash.empty:
@@ -3110,7 +3157,7 @@ else:
                                 (df_tarefas_all['descricao'].astype(str).str.contains(str(p['nome_plano']), case=False, na=False))
                             ] if not df_tarefas_all.empty else pd.DataFrame()
                             
-                            os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente, tarefa_id_recente = 0.0, 0.0, "-", "-", None
+                            os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente, tarefa_id_recente, exec_atual, turno_atual, inicio_atual, fim_atual, area_atual, data_atual = 0.0, 0.0, "-", "-", None, "", "Não definido", "00:00", "00:00", area_padrao_plano, datetime.now().date()
                             
                             if not tarefas_veiculo.empty:
                                 pendente_veiculo = tarefas_veiculo[tarefas_veiculo['realizado'] == False]
@@ -3118,6 +3165,13 @@ else:
                                     t_recente = pendente_veiculo.iloc[0]
                                     numero_os_recente = str(t_recente.get('numero_os') or "").replace('.0', '')
                                     tarefa_id_recente = t_recente.get('id')
+                                    exec_atual = str(t_recente.get('executor') or "")
+                                    turno_atual = str(t_recente.get('turno') or "Não definido")
+                                    inicio_atual = str(t_recente.get('inicio_disp') or "00:00")
+                                    fim_atual = str(t_recente.get('fim_disp') or "00:00")
+                                    area_atual = str(t_recente.get('area') or area_padrao_plano)
+                                    if pd.notnull(t_recente.get('data')):
+                                        data_atual = pd.to_datetime(t_recente.get('data')).date()
                                 else:
                                     primeira_tarefa = tarefas_veiculo[tarefas_veiculo['realizado'] == True]
                                     if not primeira_tarefa.empty:
@@ -3171,13 +3225,13 @@ else:
                                 "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
                                 "Próxima Preventiva": f"{proxima_preventiva_val:,.1f} {'km' if crit=='Odômetro' else 'h'}".replace(",", ".") if (crit != "Dias" and proxima_preventiva_val > 0) else "-",
                                 "Saldo Restante": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando",
-                                # Campos operacionais editáveis:
-                                "Área": area_padrao_plano,
-                                "Turno": "Não definido",
-                                "Executor": "",
-                                "Início": "00:00",
-                                "Fim": "00:00",
-                                "Data Agendada": datetime.now().date(),
+                                # Campos operacionais com valores reais recuperados:
+                                "Área": area_atual,
+                                "Turno": turno_atual,
+                                "Executor": exec_atual,
+                                "Início": inicio_atual,
+                                "Fim": fim_atual,
+                                "Data Agendada": data_atual,
                                 "_saldo_ordem": saldo_restante
                             })
 
@@ -3207,7 +3261,7 @@ else:
                                     # Campos editáveis compactos:
                                     "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"),
                                     "Turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS, width="small"),
-                                    "Executor": st.column_config.TextColumn("Executor", width="small"),
+                                    "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="small"),
                                     "Início": st.column_config.TextColumn("Início", width="small"),
                                     "Fim": st.column_config.TextColumn("Fim", width="small"),
                                     "Data Agendada": st.column_config.DateColumn("Data", width="small")
@@ -3222,7 +3276,6 @@ else:
                                     t_inicio = formatar_hora_simples(r['Início'])
                                     t_fim = formatar_hora_simples(r['Fim'])
                                     
-                                    # Se marcou para gerar e não tem OS, cria nova OS
                                     if r['Gerar OS'] == True and str(r['Nº OS']) == "-":
                                         v_os = obter_proxima_os(engine, emp_id)
                                         h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['Veículo'], str(r['Data Agendada']))
@@ -3247,7 +3300,6 @@ else:
                                                 "nos": v_os
                                             }
                                         )
-                                    # Se já tem OS associada, atualiza os dados dela na Agenda Principal
                                     elif pd.notnull(r.get('_id_tarefa')) and str(r['Nº OS']) != "-":
                                         conn.execute(
                                             text("""
