@@ -3206,7 +3206,7 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Novo Executor:** Se o mecânico não estiver na lista, clique em **+ Novo Executor** no topo para adicioná-lo à base.
-                2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e digite os horários apenas com números (ex: `800`).
+                2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e digite os horários (por padrão vêm `00:00`, digite ex: `800` para `08:00`).
                 3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
 
@@ -3219,7 +3219,6 @@ else:
                     if novo_ex_input.strip():
                         try:
                             with engine.connect() as conn:
-                                # Garante que a tabela de executores dedicada existe
                                 conn.execute(text("""
                                     CREATE TABLE IF NOT EXISTS executores (
                                         id SERIAL PRIMARY KEY,
@@ -3227,7 +3226,6 @@ else:
                                         nome VARCHAR(100)
                                     )
                                 """))
-                                # Insere o novo executor sem afetar a tabela de tarefas/agenda
                                 conn.execute(
                                     text("INSERT INTO executores (empresa_id, nome) VALUES (:eid, :nome)"),
                                     {"eid": str(emp_id), "nome": novo_ex_input.strip()}
@@ -3259,8 +3257,8 @@ else:
                 df_p['Executor'] = ""
                 df_p['Area_Destino'] = "Mecânica"
                 df_p['Data_Programada'] = datetime.now().date()
-                df_p['Inicio'] = "08:00"
-                df_p['Fim'] = "10:00"
+                df_p['Inicio'] = "00:00"
+                df_p['Fim'] = "00:00"
                 
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
@@ -3289,8 +3287,10 @@ else:
                 if ex and ex not in executores_cadastrados:
                     executores_cadastrados.append(ex)
 
-            # Função para formatar horários corretamente (ex: 800 vira 08:00)
+            # Função robusta para formatar horários (ex: 800 vira 08:00, vazio ou 0 vira 00:00)
             def formatar_hora_simples(val):
+                if not val or str(val).strip() in ["None", "nan", ""]:
+                    return "00:00"
                 v = ''.join(filter(str.isdigit, str(val)))
                 if len(v) == 3:
                     return f"0{v[0]}:{v[1:]}"
@@ -3298,7 +3298,9 @@ else:
                     return f"{v[:2]}:{v[2:]}"
                 elif len(v) == 1 or len(v) == 2:
                     return f"{v.zfill(2)}:00"
-                return str(val) if val and ":" in str(val) else "08:00"
+                elif ":" in str(val):
+                    return str(val)
+                return "00:00"
 
             with st.form("form_lote_chamados"):
                 ed_c = st.data_editor(
