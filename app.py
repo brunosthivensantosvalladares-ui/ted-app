@@ -2560,10 +2560,9 @@ else:
                 st.rerun()
 
         st.divider()
-        st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
         
-        # Aviso destacado em azul no padrão do site
-        st.info("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
+        # Observações unificadas em uma única caixa azul elegante
+        st.info("✍️ **Logística:** Preencha **Início** ou **Fim**. **PCM:** Defina **Área** ou **Executor**. \n💡 **Dica de Horários:** Digite apenas os números (ex: 800, Salva como 08:00).")
         
         df_a = carregar_tarefas_empresa(emp_id)
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
@@ -2606,66 +2605,74 @@ else:
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
             
-            for d in sorted(df_f['data'].unique(), reverse=True):
-                st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
-                areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
-                for area in areas_para_exibir:
-                    df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
-                    if not df_area_f.empty:
-                        st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
-                        
-                        df_area_f['Nº OS'] = df_area_f['numero_os'].astype(str).replace(['None', 'nan', 'None.0'], '')
-                        df_area_f['Nº OS'] = df_area_f['Nº OS'].str.replace('.0', '', regex=False)
-                        
-                        df_editor_base = df_area_f.set_index('id')
-                        
-                        cols_para_editor = [c for c in ['realizado', 'Nº OS', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado'] if c in df_editor_base.columns]
-                        edited_df = st.data_editor(
-                            df_editor_base[cols_para_editor], 
-                            column_config={
-                                "realizado": st.column_config.CheckboxColumn("OK", width="small"),
-                                "Nº OS": st.column_config.TextColumn("Nº OS", disabled=True),
-                                "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS),
-                                "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
-                                "inicio_disp": st.column_config.TextColumn("Início (Preencher)"),
-                                "fim_disp": st.column_config.TextColumn("Fim (Preencher)"),
-                                "executor": st.column_config.TextColumn("Executor"),
-                                "id_chamado": None
-                            }, 
-                            hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
-                        )
+            # Envolvemos a exibição da agenda em um formulário para salvamento estritamente manual por botão
+            with st.form("form_agenda_principal_lote"):
+                edits_por_secao = {}
+                
+                for d in sorted(df_f['data'].unique(), reverse=True):
+                    st.markdown(f"#### 🗓️ {d.strftime('%d/%m/%Y')}")
+                    areas_para_exibir = ORDEM_AREAS if f_area == "Todas" else [f_area]
+                    for area in areas_para_exibir:
+                        df_area_f = df_f[(df_f['data'] == d) & (df_f['area'] == area)].sort_values(by='turno_idx')
+                        if not df_area_f.empty:
+                            st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
+                            
+                            df_area_f['Nº OS'] = df_area_f['numero_os'].astype(str).replace(['None', 'nan', 'None.0'], '')
+                            df_area_f['Nº OS'] = df_area_f['Nº OS'].str.replace('.0', '', regex=False)
+                            
+                            df_editor_base = df_area_f.set_index('id')
+                            
+                            cols_para_editor = [c for c in ['realizado', 'Nº OS', 'area', 'turno', 'prefixo', 'inicio_disp', 'fim_disp', 'executor', 'descricao', 'id_chamado'] if c in df_editor_base.columns]
+                            
+                            edited_df = st.data_editor(
+                                df_editor_base[cols_para_editor], 
+                                column_config={
+                                    "realizado": st.column_config.CheckboxColumn("OK", width="small"),
+                                    "Nº OS": st.column_config.TextColumn("Nº OS", disabled=True),
+                                    "area": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS),
+                                    "turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS),
+                                    "inicio_disp": st.column_config.TextColumn("Início (Preencher)"),
+                                    "fim_disp": st.column_config.TextColumn("Fim (Preencher)"),
+                                    "executor": st.column_config.TextColumn("Executor"),
+                                    "id_chamado": None
+                                }, 
+                                hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
+                            )
+                            edits_por_secao[f"{d}_{area}"] = (df_editor_base, edited_df, cols_para_editor)
 
-                        # Verifica alterações sem forçar reescrita reativa de valores na tabela (evita o loop)
-                        if not edited_df[cols_para_editor].equals(df_editor_base[cols_para_editor]):
-                            with engine.connect() as conn:
-                                for row_id, row in edited_df.iterrows():
-                                    t_inicio = formatar_hora_simples(row['inicio_disp'])
-                                    t_fim = formatar_hora_simples(row['fim_disp'])
+                btn_salvar_agenda = st.form_submit_button("💾 Salvar Alterações da Agenda", type="primary", use_container_width=True)
 
-                                    conn.execute(text("""
-                                        UPDATE tarefas SET 
-                                        realizado = :r, area = :ar, turno = :t, prefixo = :p, 
-                                        inicio_disp = :i, fim_disp = :f, 
-                                        executor = :ex, descricao = :ds 
-                                        WHERE id = :id AND empresa_id = :eid
-                                    """), {
-                                        "r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), 
-                                        "p": str(row['prefixo']), "i": t_inicio, 
-                                        "f": t_fim, "ex": str(row['executor']), 
-                                        "ds": str(row['descricao']), "id": int(row_id),
-                                        "eid": str(emp_id)
-                                    })
-                                    if row['realizado'] and pd.notnull(row['id_chamado']):
-                                        try: 
-                                            conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic AND empresa_id = :eid"), 
-                                                         {"ic": int(row['id_chamado']), "eid": str(emp_id)})
-                                        except Exception: 
-                                            pass
-                                conn.commit()
-                            st.cache_data.clear()
-                            st.toast("Alteração salva com sucesso!", icon="✅")
-                            time_module.sleep(0.3)
-                            st.rerun()
+            if btn_salvar_agenda:
+                with engine.connect() as conn:
+                    for sec_key, (df_orig, df_edit, cols_ed) in edits_por_secao.items():
+                        for row_id, row in df_edit.iterrows():
+                            t_inicio = formatar_hora_simples(row['inicio_disp'])
+                            t_fim = formatar_hora_simples(row['fim_disp'])
+
+                            conn.execute(text("""
+                                UPDATE tarefas SET 
+                                realizado = :r, area = :ar, turno = :t, prefixo = :p, 
+                                inicio_disp = :i, fim_disp = :f, 
+                                executor = :ex, descricao = :ds 
+                                WHERE id = :id AND empresa_id = :eid
+                            """), {
+                                "r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), 
+                                "p": str(row['prefixo']), "i": t_inicio, 
+                                "f": t_fim, "ex": str(row['executor']), 
+                                "ds": str(row['descricao']), "id": int(row_id),
+                                "eid": str(emp_id)
+                            })
+                            if row['realizado'] and pd.notnull(row['id_chamado']):
+                                try: 
+                                    conn.execute(text("UPDATE chamados SET status = 'Concluído' WHERE id = :ic AND empresa_id = :eid"), 
+                                                 {"ic": int(row['id_chamado']), "eid": str(emp_id)})
+                                except Exception: 
+                                    pass
+                    conn.commit()
+                st.cache_data.clear()
+                st.success("✅ Alterações salvas com sucesso na Agenda Principal!")
+                time_module.sleep(0.5)
+                st.rerun()
 
     elif "Cadastro Direto" in aba_ativa:
         st.subheader("📝 Agendamento Direto & Planos Master")
