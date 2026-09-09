@@ -3211,8 +3211,8 @@ else:
         with st.popover("💡 Como usar os Chamados?"):
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
-                1. **Triagem:** Veja o que os motoristas relataram. 
-                2. **Configuração:** Ajuste os campos diretamente na tabela (digite os horários apenas com números, ex: `800` ou `0800`).
+                1. **Triagem:** Veja o que os motoristas relataram[cite: 2]. 
+                2. **Configuração:** Ajuste os campos na tabela (digite novos executores livremente e insira horários apenas com números, ex: `800`).
                 3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
             
@@ -3234,15 +3234,17 @@ else:
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
 
-            # Busca lista de executores cadastrados anteriormente para a lista suspensa
-            executores_cadastrados = [""]
+            # Busca lista de executores cadastrados para exibir como dica/sugestão no cabeçalho
+            executores_sugeridos = []
             try:
                 df_exec_ant = pd.read_sql(text("SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
                 if not df_exec_ant.empty:
-                    executores_cadastrados += df_exec_ant['executor'].tolist()
+                    executores_sugeridos = df_exec_ant['executor'].tolist()
             except Exception:
                 pass
             
+            sugestao_exec_texto = f"Executor (Sugestões: {', '.join(executores_sugeridos[:4])})" if executores_sugeridos else "Executor"
+
             # Função para formatar horários corretamente
             def formatar_hora_simples(val):
                 v = ''.join(filter(str.isdigit, str(val)))
@@ -3254,7 +3256,6 @@ else:
                     return f"{v.zfill(2)}:00"
                 return str(val) if val and ":" in str(val) else "08:00"
 
-            # Envolvemos a tabela e o botão em um form para impedir qualquer salvamento automático
             with st.form("form_lote_chamados"):
                 ed_c = st.data_editor(
                     st.session_state.df_ap_work, 
@@ -3263,11 +3264,11 @@ else:
                     column_config={
                         "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
                         "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
-                        "descricao": st.column_config.TextColumn("Descrição", width="small", disabled=True),
+                        "descricao": st.column_config.TextColumn("Descrição", width="large", disabled=True),
                         "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
                         "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
                         "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
-                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="small"),
+                        "Executor": st.column_config.TextColumn(sugestao_exec_texto, width="medium"),
                         "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
                         "Inicio": st.column_config.TextColumn("Início", width="small"),
                         "Fim": st.column_config.TextColumn("Fim", width="small"),
