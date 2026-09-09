@@ -3206,8 +3206,6 @@ else:
             if st.button("🔄 Atualizar Lista", use_container_width=True, key="btn_refresh_chamados"):
                 if 'df_ap_work' in st.session_state: 
                     del st.session_state.df_ap_work
-                if 'analises_halley' in st.session_state:
-                    del st.session_state.analises_halley
                 st.rerun()
 
         with st.popover("💡 Como usar os Chamados?"):
@@ -3215,7 +3213,7 @@ else:
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram[cite: 2]. 
                 2. **Configuração:** Ajuste a Área, o Tipo de OS, escolha o Executor na lista e digite os horários apenas com números (ex: `800` ou `0800`).
-                3. **Finalizar:** Marque os chamados que deseja aprovar e clique em **Processar Agendamentos em Lote**[cite: 2].
+                3. **Finalizar:** Marque os chamados que deseja aprovar e clique no botão **Processar Agendamentos em Lote**[cite: 2].
             """)
             
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": str(emp_id)})
@@ -3256,12 +3254,7 @@ else:
                     return f"{v.zfill(2)}:00"
                 return str(val) if val and ":" in str(val) else "08:00"
 
-            # Aplica a formatação de horários diretamente no estado antes de exibir a tabela
-            for idx in range(len(st.session_state.df_ap_work)):
-                st.session_state.df_ap_work.loc[idx, 'Inicio'] = formatar_hora_simples(st.session_state.df_ap_work.loc[idx, 'Inicio'])
-                st.session_state.df_ap_work.loc[idx, 'Fim'] = formatar_hora_simples(st.session_state.df_ap_work.loc[idx, 'Fim'])
-
-            # Editor compactado com larguras otimizadas e encolhidas para Descrição e Executor
+            # Renderiza a tabela de edição de forma totalmente isolada (sem salvamento automático por trás)
             ed_c = st.data_editor(
                 st.session_state.df_ap_work, 
                 hide_index=True, 
@@ -3283,8 +3276,8 @@ else:
                 key="editor_chamados"
             )
             
+            # O salvamento e processamento só ocorrem estritamente ao clicar neste botão
             if st.button("🚀 Processar Agendamentos em Lote", type="primary", key="btn_proc_agendamentos"):
-                st.session_state.df_ap_work = ed_c
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 
                 if not selecionados.empty:
