@@ -2442,7 +2442,6 @@ else:
     elif "Agenda Principal" in aba_ativa:
         st.subheader("📅 Cronograma Geral de Manutenções")
         
-        # --- BLOCO DE MÉTRICAS SEGURO (NÃO BLOQUEIA MAIS A TELA) ---
         try:
             df_stats = pd.read_sql(text("SELECT data, realizado FROM tarefas WHERE empresa_id = :eid"), engine, params={"eid": str(emp_id)})
             if not df_stats.empty:
@@ -2563,8 +2562,8 @@ else:
         st.divider()
         st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
         
-        # Aviso idêntico de preenchimento de horários acima da agenda
-        st.caption("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
+        # Aviso destacado em azul no padrão do site
+        st.info("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
         
         df_a = carregar_tarefas_empresa(emp_id)
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
@@ -2580,7 +2579,6 @@ else:
         
         c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
 
-        # Função auxiliar de formatação de horários aplicada na Agenda Principal também
         def formatar_hora_simples(val):
             if not val or str(val).strip() in ["None", "nan", ""]:
                 return "00:00"
@@ -2637,6 +2635,7 @@ else:
                             hide_index=False, use_container_width=True, key=f"ed_ted_{d}_{area}"
                         )
 
+                        # Verifica alterações sem forçar reescrita reativa de valores na tabela (evita o loop)
                         if not edited_df[cols_para_editor].equals(df_editor_base[cols_para_editor]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
@@ -2664,8 +2663,9 @@ else:
                                             pass
                                 conn.commit()
                             st.cache_data.clear()
-                            st.toast("Alteração salva com isolamento de segurança!", icon="✅")
-                            time_module.sleep(0.5); st.rerun()
+                            st.toast("Alteração salva com sucesso!", icon="✅")
+                            time_module.sleep(0.3)
+                            st.rerun()
 
     elif "Cadastro Direto" in aba_ativa:
         st.subheader("📝 Agendamento Direto & Planos Master")
@@ -3219,10 +3219,9 @@ else:
                 4. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
 
-        # Aviso sutil e elegante logo acima da tabela, na altura da seta
-        st.caption("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
+        # Aviso destacado em azul no padrão do site
+        st.info("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
 
-        # Posiciona os botões alinhados logo acima da tabela, próximos à coluna do Executor
         col_espaco, col_btn1, col_btn2 = st.columns([0.45, 0.28, 0.27])
         with col_btn1:
             with st.popover("➕ Novo Executor", use_container_width=True):
@@ -3275,7 +3274,6 @@ else:
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
 
-            # Busca lista unificada de executores (tabela dedicada + históricos de tarefas)
             executores_cadastrados = [""]
             try:
                 with engine.connect() as conn:
@@ -3299,7 +3297,6 @@ else:
                 if ex and ex not in executores_cadastrados:
                     executores_cadastrados.append(ex)
 
-            # Função robusta para formatar horários (ex: 800 vira 08:00, vazio ou 0 vira 00:00)
             def formatar_hora_simples(val):
                 if not val or str(val).strip() in ["None", "nan", ""]:
                     return "00:00"
