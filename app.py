@@ -2456,35 +2456,20 @@ else:
                 with m3: st.metric("Pendentes", len(df_hoje[df_hoje['realizado'] == False]))
                 st.divider()
         except Exception:
-            # Se der erro ou a tabela estiver vazia, exibe um aviso suave mas continua a execução da página
             st.info("ℹ️ Nenhuma métrica para exibir ou banco inicializando. A agenda está pronta para uso abaixo.")
             st.divider()
 
         with st.popover("💡 Como usar a Agenda?"):
             st.markdown("""
-            1. Selecione a OS na lista.
-            2. Grave o áudio citando seu Nome, Prefixo e Horários.
-            3. Confira a transcrição e clique em Confirmar.
+                ### 📅 Guia Rápido - Agenda Principal
+                1. Selecione a OS na lista.
+                2. Grave o áudio citando seu Nome, Prefixo e Horários.
+                3. Confira a transcrição e clique em Confirmar.
+                4. **Regra dos Horários:** Digite apenas os números (ex: 800, Salva como 08:00).
             """)
 
         if "exibir_bot" not in st.session_state:
             st.session_state.exibir_bot = True
-
-        st.markdown("""
-            <style>
-                div[data-testid="stPopoverBody"] { width: 850px !important; max-width: 90vw !important; }
-                .pulsing-dot {
-                    height: 10px; width: 10px; background-color: #ff4b4b;
-                    border-radius: 50%; display: inline-block; margin-right: 5px;
-                    box-shadow: 0 0 0 0 rgba(255, 75, 75, 1); animation: pulse 1.5s infinite;
-                }
-                @keyframes pulse {
-                    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.8); }
-                    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); }
-                    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
-                }
-            </style>
-        """, unsafe_allow_html=True)
 
         st.markdown("""
             <style>
@@ -2578,6 +2563,9 @@ else:
         st.divider()
         st.info("✍️ **Logística:** Clique nas colunas de **Início** ou **Fim** para preencher. **PCM:** Clique em **Área** ou **Executor** para definir. O salvamento é automático.")
         
+        # Aviso idêntico de preenchimento de horários acima da agenda
+        st.caption("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
+        
         df_a = carregar_tarefas_empresa(emp_id)
         hoje_input, amanha = datetime.now().date(), datetime.now().date() + timedelta(days=1)
         
@@ -2591,6 +2579,21 @@ else:
         with c_turno: f_turno = st.selectbox("Filtrar Turno", opcoes_turno)
         
         c_pdf, c_xls, _ = st.columns([0.2, 0.2, 0.6])
+
+        # Função auxiliar de formatação de horários aplicada na Agenda Principal também
+        def formatar_hora_simples(val):
+            if not val or str(val).strip() in ["None", "nan", ""]:
+                return "00:00"
+            v = ''.join(filter(str.isdigit, str(val)))
+            if len(v) == 3:
+                return f"0{v[0]}:{v[1:]}"
+            elif len(v) == 4:
+                return f"{v[:2]}:{v[2:]}"
+            elif len(v) == 1 or len(v) == 2:
+                return f"{v.zfill(2)}:00"
+            elif ":" in str(val):
+                return str(val)
+            return "00:00"
 
         if not df_a.empty and len(p_sel) == 2:
             df_a['data'] = pd.to_datetime(df_a['data'], errors='coerce').dt.date
@@ -2613,7 +2616,6 @@ else:
                     if not df_area_f.empty:
                         st.markdown(f"<p class='area-header'>📍 {area}</p>", unsafe_allow_html=True)
                         
-                        # Garante que a coluna Nº OS esteja tratada e visível no topo
                         df_area_f['Nº OS'] = df_area_f['numero_os'].astype(str).replace(['None', 'nan', 'None.0'], '')
                         df_area_f['Nº OS'] = df_area_f['Nº OS'].str.replace('.0', '', regex=False)
                         
@@ -2638,6 +2640,9 @@ else:
                         if not edited_df[cols_para_editor].equals(df_editor_base[cols_para_editor]):
                             with engine.connect() as conn:
                                 for row_id, row in edited_df.iterrows():
+                                    t_inicio = formatar_hora_simples(row['inicio_disp'])
+                                    t_fim = formatar_hora_simples(row['fim_disp'])
+
                                     conn.execute(text("""
                                         UPDATE tarefas SET 
                                         realizado = :r, area = :ar, turno = :t, prefixo = :p, 
@@ -2646,8 +2651,8 @@ else:
                                         WHERE id = :id AND empresa_id = :eid
                                     """), {
                                         "r": bool(row['realizado']), "ar": str(row['area']), "t": str(row['turno']), 
-                                        "p": str(row['prefixo']), "i": str(row['inicio_disp']), 
-                                        "f": str(row['fim_disp']), "ex": str(row['executor']), 
+                                        "p": str(row['prefixo']), "i": t_inicio, 
+                                        "f": t_fim, "ex": str(row['executor']), 
                                         "ds": str(row['descricao']), "id": int(row_id),
                                         "eid": str(emp_id)
                                     })
@@ -3208,11 +3213,14 @@ else:
                 1. **Novo Executor:** Se o mecânico não estiver na lista, clique em **+ Novo Executor** no topo para adicioná-lo à base.
                 2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e insira os horários.
                 3. **Regra dos Horários:** 
-                   - Digite apenas os números (ex: `800` $\rightarrow$ Salva como `08:00`)
-                   - Exemplo: `1430` $\rightarrow$ Salva como `14:30`
-                   - Deixou padrão ou vazio $\rightarrow$ Salva como `00:00`
+                   - Digite apenas os números (ex: 800, Salva como 08:00)
+                   - Exemplo: 1430, Salva como 14:30
+                   - Deixou padrão ou vazio, Salva como 00:00
                 4. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
+
+        # Aviso sutil e elegante logo acima da tabela, na altura da seta
+        st.caption("💡 **Dica de Preenchimento:** Digite apenas os números nos horários (ex: 800, Salva como 08:00).")
 
         # Posiciona os botões alinhados logo acima da tabela, próximos à coluna do Executor
         col_espaco, col_btn1, col_btn2 = st.columns([0.45, 0.28, 0.27])
