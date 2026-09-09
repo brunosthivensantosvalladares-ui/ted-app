@@ -1801,7 +1801,7 @@ else:
 if "mr_halley_aberto" not in st.session_state:
     st.session_state.mr_halley_aberto = False
 
-if "Dashboard" in aba_ativa:
+    if "Dashboard" in aba_ativa:
         st.markdown("<h4 style='color: #2D241E; font-weight: 700; margin-bottom: 16px;'>Cronograma Geral de Manutenção</h4>", unsafe_allow_html=True)
         
         df_dash_stats = carregar_tarefas_empresa(emp_id)
