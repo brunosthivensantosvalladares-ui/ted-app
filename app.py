@@ -1878,18 +1878,28 @@ else:
                             med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                             data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                        tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)]
+                        # Busca tarefas atreladas especificamente a este veículo E a este plano
+                        tarefas_veiculo = df_tarefas_all[
+                            (df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & 
+                            (df_tarefas_all['descricao'].astype(str).str.contains(str(p['nome_plano']), case=False, na=False))
+                        ] if not df_tarefas_all.empty else pd.DataFrame()
+                        
                         os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
                         
                         if not tarefas_veiculo.empty:
-                            primeira_tarefa = tarefas_veiculo.iloc[0]
-                            data_os_reg = str(primeira_tarefa.get('data') or "-")
-                            numero_os_recente = str(primeira_tarefa.get('numero_os') or "").replace('.0', '')
-                            desc_os = str(primeira_tarefa.get('descricao') or "")
-                            try:
-                                if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
-                                if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
-                            except Exception: pass
+                            pendente_veiculo = tarefas_veiculo[tarefas_veiculo['realizado'] == False]
+                            if not pendente_veiculo.empty:
+                                numero_os_recente = str(pendente_veiculo.iloc[0].get('numero_os') or "").replace('.0', '')
+                            else:
+                                primeira_tarefa = tarefas_veiculo[tarefas_veiculo['realizado'] == True]
+                                if not primeira_tarefa.empty:
+                                    numero_os_recente = str(primeira_tarefa.iloc[0].get('numero_os') or "").replace('.0', '')
+                                    data_os_reg = str(primeira_tarefa.iloc[0].get('data') or "-")
+                                    desc_os = str(primeira_tarefa.iloc[0].get('descricao') or "")
+                                    try:
+                                        if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
+                                        if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
+                                    except Exception: pass
 
                         tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
                         if not tem_leitura_sistema and crit in ["Horímetro", "Odômetro"]: avisos_pendencia_medidor.add(pref)
@@ -3041,12 +3051,13 @@ else:
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
             st.info("💡 Acompanhe os vencimentos de planos por veículo. Enquanto houver uma OS em aberto, o número aparecerá em **verde e negrito** e a seleção ficará travada.")
 
-            # Injeta o estilo visual para deixar o número da OS pendente em verde e negrito na tabela
+            # Injeta o estilo visual para forçar o texto das células da tabela em verde e negrito
             st.markdown("""
                 <style>
-                    div[data-testid="stDataEditor"] td:has(span) {
+                    div[data-testid="stDataEditor"] div[data-baseweb="input"] input,
+                    div[data-testid="stDataEditor"] td div {
                         color: #2E7D32 !important;
-                        font-weight: bold !important;
+                        font-weight: 700 !important;
                     }
                 </style>
             """, unsafe_allow_html=True)
@@ -3072,8 +3083,12 @@ else:
                                 med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                                 data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                            # Busca tarefas para verificar se há OS aberta ou concluída recente
-                            tarefas_veiculo = df_tarefas_all[df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()] if not df_tarefas_all.empty else pd.DataFrame()
+                            # Busca tarefas atreladas especificamente a este veículo E a este plano
+                            tarefas_veiculo = df_tarefas_all[
+                                (df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & 
+                                (df_tarefas_all['descricao'].astype(str).str.contains(str(p['nome_plano']), case=False, na=False))
+                            ] if not df_tarefas_all.empty else pd.DataFrame()
+                            
                             os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
                             
                             if not tarefas_veiculo.empty:
