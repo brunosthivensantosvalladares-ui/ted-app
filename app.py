@@ -3212,7 +3212,7 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram[cite: 2]. 
-                2. **Configuração:** Ajuste os campos na tabela (selecione um executor existente na lista ou digite um novo nome livremente, e insira horários apenas com números, ex: `800`).
+                2. **Configuração:** Ajuste a Área, o Tipo de OS, selecione ou digite o Executor na lista suspensa e insira horários apenas com números (ex: `800` ou `0800`).
                 3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
             
@@ -3234,7 +3234,7 @@ else:
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
 
-            # Busca lista de executores cadastrados anteriormente para compor as opções flexíveis
+            # Busca lista de executores cadastrados anteriormente
             executores_cadastrados = [""]
             try:
                 df_exec_ant = pd.read_sql(text("SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
@@ -3243,6 +3243,12 @@ else:
             except Exception:
                 pass
             
+            # Garante dinamicamente que qualquer executor já digitado no dataframe atual conste nas opções da lista suspensa
+            executores_atuais_tabela = st.session_state.df_ap_work['Executor'].dropna().unique().tolist()
+            for ex in executores_atuais_tabela:
+                if ex and ex not in executores_cadastrados:
+                    executores_cadastrados.append(ex)
+
             # Função para formatar horários corretamente
             def formatar_hora_simples(val):
                 v = ''.join(filter(str.isdigit, str(val)))
@@ -3266,7 +3272,7 @@ else:
                         "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
                         "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
                         "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
-                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="medium", default=""),
+                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="medium"),
                         "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
                         "Inicio": st.column_config.TextColumn("Início", width="small"),
                         "Fim": st.column_config.TextColumn("Fim", width="small"),
@@ -3279,6 +3285,7 @@ else:
                 btn_processar = st.form_submit_button("💾 Salvar e Processar Agendamentos em Lote", type="primary", use_container_width=True)
 
             if btn_processar:
+                st.session_state.df_ap_work = ed_c
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 
                 if not selecionados.empty:
