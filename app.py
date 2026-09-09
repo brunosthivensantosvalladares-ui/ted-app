@@ -3206,8 +3206,12 @@ else:
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Novo Executor:** Se o mecânico não estiver na lista, clique em **+ Novo Executor** no topo para adicioná-lo à base.
-                2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e digite os horários (por padrão vêm `00:00`, digite ex: `800` para `08:00`).
-                3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
+                2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e insira os horários.
+                3. **Regra dos Horários:** 
+                   - Digite apenas os números (ex: `800` $\rightarrow$ Salva como `08:00`)
+                   - Exemplo: `1430` $\rightarrow$ Salva como `14:30`
+                   - Deixou padrão ou vazio $\rightarrow$ Salva como `00:00`
+                4. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
 
         # Posiciona os botões alinhados logo acima da tabela, próximos à coluna do Executor
