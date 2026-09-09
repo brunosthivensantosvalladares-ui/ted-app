@@ -3198,47 +3198,54 @@ else:
             st.info("Nenhuma leitura de medidor registrada até o momento.")
 
     elif "Chamados Oficina" in aba_ativa:
-        c_tit, c_refresh = st.columns([0.6, 0.4])
+        c_tit, c_actions = st.columns([0.6, 0.4])
         with c_tit: 
             st.subheader("📥 Aprovação de Chamados")
             
-        with c_refresh:
-            # Botão rápido para cadastrar novo executor e opção de atualizar
-            c_cad, c_ref = st.columns(2)
-            with c_cad:
-                with st.popover("➕ Novo Executor"):
-                    novo_ex_input = st.text_input("Nome do Novo Executor/Mecânico", key="input_novo_exec_rapido")
-                    if st.button("Cadastrar Executor", key="btn_cad_exec_rapido"):
-                        if novo_ex_input.strip():
-                            try:
-                                with engine.connect() as conn:
-                                    # Insere uma tarefa temporária ou de cadastro para fixar o executor na lista
-                                    conn.execute(
-                                        text("INSERT INTO tarefas (data, executor, prefixo, descricao, area, tipo_os, turno, origem, empresa_id) VALUES (:dt, :ex, 'SISTEMA', 'Cadastro de Executor', 'Mecânica', 'Corretiva', 'Não definido', 'Sistema', :eid)"),
-                                        {"dt": str(datetime.now().date()), "ex": novo_ex_input.strip(), "eid": str(emp_id)}
-                                    )
-                                    conn.commit()
-                                st.success(f"Executor '{novo_ex_input.strip()}' cadastrado com sucesso!")
-                                if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
-                                time_module.sleep(0.5)
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao cadastrar: {e}")
-                        else:
-                            st.warning("Digite um nome válido.")
-            with c_ref:
-                if st.button("🔄 Atualizar", use_container_width=True, key="btn_refresh_chamados"):
-                    if 'df_ap_work' in st.session_state: 
-                        del st.session_state.df_ap_work
-                    st.rerun()
-
         with st.popover("💡 Como usar os Chamados?"):
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
-                1. **Novo Executor:** Se o mecânico não estiver na lista, clique em **+ Novo Executor** no topo para adicioná-lo.
+                1. **Novo Executor:** Se o mecânico não estiver na lista, clique em **+ Novo Executor** no topo para adicioná-lo à base.
                 2. **Configuração:** Ajuste a Área, Tipo de OS, selecione o Executor na lista suspensa e digite os horários apenas com números (ex: `800`).
                 3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
+
+        # Posiciona os botões alinhados logo acima da tabela, próximos à coluna do Executor
+        col_espaco, col_btn1, col_btn2 = st.columns([0.45, 0.28, 0.27])
+        with col_btn1:
+            with st.popover("➕ Novo Executor", use_container_width=True):
+                novo_ex_input = st.text_input("Nome do Novo Executor/Mecânico", key="input_novo_exec_rapido")
+                if st.button("Cadastrar Executor", key="btn_cad_exec_rapido"):
+                    if novo_ex_input.strip():
+                        try:
+                            with engine.connect() as conn:
+                                # Garante que a tabela de executores dedicada existe
+                                conn.execute(text("""
+                                    CREATE TABLE IF NOT EXISTS executores (
+                                        id SERIAL PRIMARY KEY,
+                                        empresa_id VARCHAR(50),
+                                        nome VARCHAR(100)
+                                    )
+                                """))
+                                # Insere o novo executor sem afetar a tabela de tarefas/agenda
+                                conn.execute(
+                                    text("INSERT INTO executores (empresa_id, nome) VALUES (:eid, :nome)"),
+                                    {"eid": str(emp_id), "nome": novo_ex_input.strip()}
+                                )
+                                conn.commit()
+                            st.success(f"Executor '{novo_ex_input.strip()}' cadastrado com sucesso!")
+                            if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
+                            time_module.sleep(0.5)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao cadastrar: {e}")
+                    else:
+                        st.warning("Digite um nome válido.")
+        with col_btn2:
+            if st.button("🔄 Atualizar", use_container_width=True, key="btn_refresh_chamados"):
+                if 'df_ap_work' in st.session_state: 
+                    del st.session_state.df_ap_work
+                st.rerun()
             
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": str(emp_id)})
         
@@ -3258,22 +3265,31 @@ else:
                 colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
                 st.session_state.df_ap_work = df_p[colunas_ordenadas]
 
-            # Busca lista de executores cadastrados no banco para alimentar a lista suspensa
+            # Busca lista unificada de executores (tabela dedicada + históricos de tarefas)
             executores_cadastrados = [""]
             try:
-                df_exec_ant = pd.read_sql(text("SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
-                if not df_exec_ant.empty:
-                    executores_cadastrados += df_exec_ant['executor'].tolist()
+                with engine.connect() as conn:
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS executores (
+                            id SERIAL PRIMARY KEY,
+                            empresa_id VARCHAR(50),
+                            nome VARCHAR(100)
+                        )
+                    """))
+                    conn.commit()
+
+                df_exec_db = pd.read_sql(text("SELECT DISTINCT nome as executor FROM executores WHERE empresa_id = :eid UNION SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
+                if not df_exec_db.empty:
+                    executores_cadastrados += df_exec_db['executor'].tolist()
             except Exception:
                 pass
             
-            # Garante que qualquer executor ativo na tabela atual apareça nas opções
             executores_atuais_tabela = st.session_state.df_ap_work['Executor'].dropna().unique().tolist()
             for ex in executores_atuais_tabela:
                 if ex and ex not in executores_cadastrados:
                     executores_cadastrados.append(ex)
 
-            # Função para formatar horários corretamente
+            # Função para formatar horários corretamente (ex: 800 vira 08:00)
             def formatar_hora_simples(val):
                 v = ''.join(filter(str.isdigit, str(val)))
                 if len(v) == 3:
@@ -3292,11 +3308,11 @@ else:
                     column_config={
                         "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
                         "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
-                        "descricao": st.column_config.TextColumn("Descrição", width="medium", disabled=True),
+                        "descricao": st.column_config.TextColumn("Descrição", width="large", disabled=True),
                         "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
                         "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
                         "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
-                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="medium"),
+                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="small"),
                         "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
                         "Inicio": st.column_config.TextColumn("Início", width="small"),
                         "Fim": st.column_config.TextColumn("Fim", width="small"),
