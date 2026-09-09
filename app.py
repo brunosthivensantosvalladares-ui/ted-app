@@ -3245,7 +3245,7 @@ else:
             except Exception:
                 pass
             
-            # Função robusta para formatar qualquer string de horário para HH:MM
+            # Função robusta para formatar qualquer string de horário para HH:MM com dois pontos
             def formatar_hora_simples(val):
                 v = ''.join(filter(str.isdigit, str(val)))
                 if len(v) == 3:
@@ -3256,52 +3256,12 @@ else:
                     return f"{v.zfill(2)}:00"
                 return str(val) if val and ":" in str(val) else "08:00"
 
-            if "editor_chamados" in st.session_state and st.session_state.editor_chamados.get("edited_rows"):
-                alteracoes = st.session_state.editor_chamados["edited_rows"]
-                
-                if "analises_halley" not in st.session_state or not isinstance(st.session_state.analises_halley, list):
-                    st.session_state.analises_halley = []
+            # Aplica a formatação de horários diretamente no estado antes de exibir a tabela
+            for idx in range(len(st.session_state.df_ap_work)):
+                st.session_state.df_ap_work.loc[idx, 'Inicio'] = formatar_hora_simples(st.session_state.df_ap_work.loc[idx, 'Inicio'])
+                st.session_state.df_ap_work.loc[idx, 'Fim'] = formatar_hora_simples(st.session_state.df_ap_work.loc[idx, 'Fim'])
 
-                for c_idx_str, campos in alteracoes.items():
-                    c_idx = int(c_idx_str)
-                    if c_idx < len(st.session_state.df_ap_work):
-                        dados_linha = st.session_state.df_ap_work.iloc[c_idx]
-                        id_chamado = dados_linha['id']
-
-                        if campos.get("Aprovar") is True:
-                            ja_analisado = any(a["id"] == id_chamado for a in st.session_state.analises_halley)
-                            
-                            if not ja_analisado:
-                                with st.spinner(f"🤖 Mr. Halley analisando Veículo {dados_linha['prefixo']}..."):
-                                    diag = triagem_mr_halley(
-                                        sintoma=dados_linha['descricao'], 
-                                        emp_id=emp_id, 
-                                        prefixo=dados_linha['prefixo'], 
-                                        incluir_saudacao=False
-                                    )
-                                    
-                                    st.session_state.analises_halley.append({
-                                        "id": id_chamado,
-                                        "veiculo": dados_linha['prefixo'],
-                                        "relato": dados_linha['descricao'],
-                                        "parecer": diag
-                                    })
-
-                                    if "mensagens_chat_halley" not in st.session_state:
-                                        st.session_state.mensagens_chat_halley = []
-                                        
-                                    st.session_state.mensagens_chat_halley.append({
-                                        "role": "assistant",
-                                        "content": f"📌 **Análise Veículo {dados_linha['prefixo']}** ({dados_linha['descricao']}):\n\n{diag}"
-                                    })
-                                    
-                                    st.session_state.chat_aberto_usuario = True
-                                    st.rerun()
-
-                        elif campos.get("Aprovar") is False:
-                            st.session_state.analises_halley = [a for a in st.session_state.analises_halley if a["id"] != id_chamado]
-
-            # Editor compactado com larguras otimizadas para caber na tela
+            # Editor compactado com larguras otimizadas e encolhidas para Descrição e Executor
             ed_c = st.data_editor(
                 st.session_state.df_ap_work, 
                 hide_index=True, 
@@ -3309,7 +3269,7 @@ else:
                 column_config={
                     "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
                     "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
-                    "descricao": st.column_config.TextColumn("Descrição", width="medium", disabled=True),
+                    "descricao": st.column_config.TextColumn("Descrição", width="small", disabled=True),
                     "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
                     "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
                     "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
@@ -3334,7 +3294,6 @@ else:
                             h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], r['Data_Programada'])
                             desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
                             
-                            # Formata os horários para garantir o padrão HH:MM com dois pontos ao salvar
                             t_inicio = formatar_hora_simples(r['Inicio'])
                             t_fim = formatar_hora_simples(r['Fim'])
 
