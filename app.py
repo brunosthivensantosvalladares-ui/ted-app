@@ -3048,9 +3048,8 @@ else:
                 st.info("Nenhum plano cadastrado.")
 
         else:
-            # --- SUB-ABA 2: GERAÇÃO AUTOMÁTICA DE OS (COM SELEÇÃO EM LOTE) ---
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
-            st.info("💡 Acompanhe os vencimentos de planos por veículo e defina os dados do agendamento. **Dica de Horários:** Digite apenas os números (ex: 800, salva como 08:00).")
+            st.info("💡 Acompanhe os vencimentos de planos por veículo, edite os dados diretamente na tabela e clique no botão abaixo para gerar novas OSs ou salvar atualizações. **Dica de Horários:** Digite apenas os números (ex: 800, salva como 08:00).")
 
             # Injeta CSS para diminuir a fonte da tabela e otimizar o espaço para caber tudo sem rolar para o lado
             st.markdown("""
@@ -3111,18 +3110,22 @@ else:
                                 (df_tarefas_all['descricao'].astype(str).str.contains(str(p['nome_plano']), case=False, na=False))
                             ] if not df_tarefas_all.empty else pd.DataFrame()
                             
-                            os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
+                            os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente, tarefa_id_recente = 0.0, 0.0, "-", "-", None
                             
                             if not tarefas_veiculo.empty:
                                 pendente_veiculo = tarefas_veiculo[tarefas_veiculo['realizado'] == False]
                                 if not pendente_veiculo.empty:
-                                    numero_os_recente = str(pendente_veiculo.iloc[0].get('numero_os') or "").replace('.0', '')
+                                    t_recente = pendente_veiculo.iloc[0]
+                                    numero_os_recente = str(t_recente.get('numero_os') or "").replace('.0', '')
+                                    tarefa_id_recente = t_recente.get('id')
                                 else:
                                     primeira_tarefa = tarefas_veiculo[tarefas_veiculo['realizado'] == True]
                                     if not primeira_tarefa.empty:
-                                        numero_os_recente = str(primeira_tarefa.iloc[0].get('numero_os') or "").replace('.0', '')
-                                        data_os_reg = str(primeira_tarefa.iloc[0].get('data') or "-")
-                                        desc_os = str(primeira_tarefa.iloc[0].get('descricao') or "")
+                                        t_recente = primeira_tarefa.iloc[0]
+                                        numero_os_recente = str(t_recente.get('numero_os') or "").replace('.0', '')
+                                        tarefa_id_recente = t_recente.get('id')
+                                        data_os_reg = str(t_recente.get('data') or "-")
+                                        desc_os = str(t_recente.get('descricao') or "")
                                         try:
                                             if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
                                             if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
@@ -3160,17 +3163,17 @@ else:
                                 "Plano": p['nome_plano'], 
                                 "Tipo": p['tipo_os'], 
                                 "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
+                                "_id_tarefa": tarefa_id_recente,
                                 "Veículo": pref, 
                                 "Critério": crit, 
                                 "Intervalo Padrão": int(intervalo_limite),
                                 "Última Leitura": f"{ultima_leitura_geral:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_leitura_geral > 0) else ("-" if crit == "Dias" else "⚠️ Sem Leitura"),
-                                "Data Ref.": data_leitura_geral if (crit == "Dias" or ultima_leitura_geral > 0) else "-",
                                 "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
-                                "Data da Preventiva": data_os_reg if (crit == "Dias" or ultima_preventiva_val > 0) else "-",
                                 "Próxima Preventiva": f"{proxima_preventiva_val:,.1f} {'km' if crit=='Odômetro' else 'h'}".replace(",", ".") if (crit != "Dias" and proxima_preventiva_val > 0) else "-",
                                 "Saldo Restante": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando",
-                                # Campos operacionais com predefinição correta:
+                                # Campos operacionais editáveis:
                                 "Área": area_padrao_plano,
+                                "Turno": "Não definido",
                                 "Executor": "",
                                 "Início": "00:00",
                                 "Fim": "00:00",
@@ -3193,63 +3196,82 @@ else:
                                     "Plano": st.column_config.TextColumn("Plano", width="medium", disabled=True),
                                     "Tipo": st.column_config.TextColumn("Tipo", width="small", disabled=True),
                                     "Nº OS": st.column_config.TextColumn("Nº OS", width="small", disabled=True),
+                                    "_id_tarefa": None,
                                     "Veículo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
                                     "Critério": st.column_config.TextColumn("Critério", width="small", disabled=True),
                                     "Intervalo Padrão": st.column_config.NumberColumn("Intervalo", width="small"),
                                     "Última Leitura": st.column_config.TextColumn("Últ. Leitura", width="small", disabled=True),
-                                    "Data Ref.": None,
                                     "Última Preventiva (Leitura)": st.column_config.TextColumn("Últ. Prev.", width="small", disabled=True),
                                     "Próxima Preventiva": st.column_config.TextColumn("Prox. Prev.", width="small", disabled=True),
                                     "Saldo Restante": st.column_config.TextColumn("Saldo", width="small", disabled=True),
                                     # Campos editáveis compactos:
                                     "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"),
+                                    "Turno": st.column_config.SelectboxColumn("Turno", options=LISTA_TURNOS, width="small"),
                                     "Executor": st.column_config.TextColumn("Executor", width="small"),
                                     "Início": st.column_config.TextColumn("Início", width="small"),
                                     "Fim": st.column_config.TextColumn("Fim", width="small"),
-                                    "Data Agendada": st.column_config.DateColumn("Data", width="small"),
-                                    "Data da Preventiva": None
+                                    "Data Agendada": st.column_config.DateColumn("Data", width="small")
                                 },
                                 hide_index=True, use_container_width=True, key="editor_geracao_lote"
                             )
-                            btn_gerar_lote = st.form_submit_button("🚀 Gerar OSs Selecionadas em Lote", type="primary", use_container_width=True)
+                            btn_gerar_lote = st.form_submit_button("🚀 Gerar OSs Selecionadas e Salvar Alterações", type="primary", use_container_width=True)
 
                         if btn_gerar_lote:
-                            selecionados_gen = ed_gen[ed_gen['Gerar OS'] == True]
-                            if not selecionados_gen.empty:
-                                with engine.connect() as conn:
-                                    for _, r in selecionados_gen.iterrows():
-                                        if str(r['Nº OS']) == "-":
-                                            v_os = obter_proxima_os(engine, emp_id)
-                                            h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['Veículo'], str(r['Data Agendada']))
-                                            desc_final_os = f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
-                                            
-                                            t_inicio = formatar_hora_simples(r['Início'])
-                                            t_fim = formatar_hora_simples(r['Fim'])
-
-                                            conn.execute(
-                                                text("""
-                                                    INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
-                                                    VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', 'Automático', :eid, :nos, False)
-                                                """),
-                                                {
-                                                    "dt": str(r['Data Agendada']), 
-                                                    "ex": str(r['Executor'] or 'A definir'), 
-                                                    "pr": str(r['Veículo']), 
-                                                    "ti": t_inicio, 
-                                                    "tf": t_fim, 
-                                                    "ds": desc_final_os, 
-                                                    "ar": str(r['Área'] or 'Mecânica'), 
-                                                    "tp": str(r['Tipo']), 
-                                                    "eid": str(emp_id), 
-                                                    "nos": v_os
-                                                }
-                                            )
-                                    conn.commit()
-                                st.cache_data.clear()
-                                st.success("✅ Ordens de Serviço selecionadas geradas com sucesso e enviadas à Agenda Principal!")
-                                time_module.sleep(0.5)
-                                st.rerun()
-                            else: st.warning("⚠️ Marque pelo menos uma linha válida sem OS em aberto.")
+                            with engine.connect() as conn:
+                                for _, r in ed_gen.iterrows():
+                                    t_inicio = formatar_hora_simples(r['Início'])
+                                    t_fim = formatar_hora_simples(r['Fim'])
+                                    
+                                    # Se marcou para gerar e não tem OS, cria nova OS
+                                    if r['Gerar OS'] == True and str(r['Nº OS']) == "-":
+                                        v_os = obter_proxima_os(engine, emp_id)
+                                        h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['Veículo'], str(r['Data Agendada']))
+                                        desc_final_os = f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
+                                        
+                                        conn.execute(
+                                            text("""
+                                                INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
+                                                VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, :tu, 'Automático', :eid, :nos, False)
+                                            """),
+                                            {
+                                                "dt": str(r['Data Agendada']), 
+                                                "ex": str(r['Executor'] or 'A definir'), 
+                                                "pr": str(r['Veículo']), 
+                                                "ti": t_inicio, 
+                                                "tf": t_fim, 
+                                                "ds": desc_final_os, 
+                                                "ar": str(r['Área'] or 'Mecânica'), 
+                                                "tp": str(r['Tipo']),
+                                                "tu": str(r['Turno'] or 'Não definido'),
+                                                "eid": str(emp_id), 
+                                                "nos": v_os
+                                            }
+                                        )
+                                    # Se já tem OS associada, atualiza os dados dela na Agenda Principal
+                                    elif pd.notnull(r.get('_id_tarefa')) and str(r['Nº OS']) != "-":
+                                        conn.execute(
+                                            text("""
+                                                UPDATE tarefas 
+                                                SET data = :dt, executor = :ex, prefixo = :pr, inicio_disp = :ti, fim_disp = :tf, area = :ar, turno = :tu
+                                                WHERE id = :id AND empresa_id = :eid
+                                            """),
+                                            {
+                                                "dt": str(r['Data Agendada']),
+                                                "ex": str(r['Executor'] or 'A definir'),
+                                                "pr": str(r['Veículo']),
+                                                "ti": t_inicio,
+                                                "tf": t_fim,
+                                                "ar": str(r['Área'] or 'Mecânica'),
+                                                "tu": str(r['Turno'] or 'Não definido'),
+                                                "id": int(r['_id_tarefa']),
+                                                "eid": str(emp_id)
+                                            }
+                                        )
+                                conn.commit()
+                            st.cache_data.clear()
+                            st.success("✅ Alterações salvas e novas Ordens de Serviço geradas com sucesso!")
+                            time_module.sleep(0.5)
+                            st.rerun()
                     else:
                         st.info("Nenhum veículo vinculado aos planos cadastrados.")
                 else:
