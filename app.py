@@ -3049,15 +3049,17 @@ else:
 
         else:
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
-            st.info("💡 Acompanhe os vencimentos de planos por veículo. Enquanto houver uma OS em aberto, o número aparecerá em **verde e negrito** e a seleção ficará travada.")
+            st.info("💡 Acompanhe os vencimentos de planos por veículo, defina os dados do agendamento e gere as OSs em lote.")
 
-            # Injeta o estilo visual para forçar o texto das células da tabela em verde e negrito
+            # Injeta CSS para diminuir a fonte da tabela e otimizar o espaço para caber tudo sem rolar para o lado
             st.markdown("""
                 <style>
-                    div[data-testid="stDataEditor"] div[data-baseweb="input"] input,
-                    div[data-testid="stDataEditor"] td div {
-                        color: #2E7D32 !important;
-                        font-weight: 700 !important;
+                    div[data-testid="stDataEditor"] table {
+                        font-size: 11.5px !important;
+                    }
+                    div[data-testid="stDataEditor"] td div,
+                    div[data-testid="stDataEditor"] th div {
+                        padding: 2px 4px !important;
                     }
                 </style>
             """, unsafe_allow_html=True)
@@ -3073,6 +3075,7 @@ else:
                         prefs = [x.strip() for x in str(p['prefixo']).split(",") if x.strip()]
                         crit = p['tipo_criterio']
                         intervalo_limite = float(p['intervalo_valor'])
+                        area_padrao_plano = p.get('area', 'Mecânica')
                         
                         for pref in prefs:
                             med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()] if not df_medidores_all.empty else pd.DataFrame()
@@ -3083,7 +3086,6 @@ else:
                                 med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                                 data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                            # Busca tarefas atreladas especificamente a este veículo E a este plano
                             tarefas_veiculo = df_tarefas_all[
                                 (df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & 
                                 (df_tarefas_all['descricao'].astype(str).str.contains(str(p['nome_plano']), case=False, na=False))
@@ -3109,18 +3111,11 @@ else:
                             tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
 
                             if crit == "Horímetro":
-                                if med_hor_reg >= os_hor_reg:
-                                    ultima_leitura_geral, data_leitura_geral = med_hor_reg, data_med_reg
-                                else:
-                                    ultima_leitura_geral, data_leitura_geral = os_hor_reg, data_os_reg
+                                ultima_leitura_geral, data_leitura_geral = (med_hor_reg, data_med_reg) if med_hor_reg >= os_hor_reg else (os_hor_reg, data_os_reg)
                             elif crit == "Odômetro":
-                                if med_odo_reg >= os_odo_reg:
-                                    ultima_leitura_geral, data_leitura_geral = med_odo_reg, data_med_reg
-                                else:
-                                    ultima_leitura_geral, data_leitura_geral = os_odo_reg, data_os_reg
+                                ultima_leitura_geral, data_leitura_geral = (med_odo_reg, data_med_reg) if med_odo_reg >= os_odo_reg else (os_odo_reg, data_os_reg)
                             else:
-                                ultima_leitura_geral = 0.0
-                                data_leitura_geral = data_med_reg if data_med_reg != "-" else data_os_reg
+                                ultima_leitura_geral, data_leitura_geral = 0.0, data_med_reg if data_med_reg != "-" else data_os_reg
 
                             ultima_preventiva_val = os_hor_reg if crit == "Horímetro" else (os_odo_reg if crit == "Odômetro" else 0.0)
 
@@ -3142,15 +3137,25 @@ else:
                                 saldo_restante, proxima_preventiva_val = intervalo_limite, 0.0
                             
                             lista_status_frota.append({
-                                "Plano": p['nome_plano'], "Tipo": p['tipo_os'], "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
-                                "Veículo": pref, "Critério": crit, "Intervalo Padrão": int(intervalo_limite),
+                                "Plano": p['nome_plano'], 
+                                "Tipo": p['tipo_os'], 
+                                "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
+                                "Veículo": pref, 
+                                "Critério": crit, 
+                                "Intervalo Padrão": int(intervalo_limite),
                                 "Última Leitura": f"{ultima_leitura_geral:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_leitura_geral > 0) else ("-" if crit == "Dias" else "⚠️ Sem Leitura"),
                                 "Data Ref.": data_leitura_geral if (crit == "Dias" or ultima_leitura_geral > 0) else "-",
                                 "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
                                 "Data da Preventiva": data_os_reg if (crit == "Dias" or ultima_preventiva_val > 0) else "-",
                                 "Próxima Preventiva": f"{proxima_preventiva_val:,.1f} {'km' if crit=='Odômetro' else 'h'}".replace(",", ".") if (crit != "Dias" and proxima_preventiva_val > 0) else "-",
-                                "_saldo_ordem": saldo_restante,
-                                "Saldo Restante Estimado": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando Leitura"
+                                "Saldo Restante": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando",
+                                # Novos campos solicitados para configuração direta na tabela:
+                                "Área": area_padrao_plano,
+                                "Executor": "",
+                                "Início": "08:00",
+                                "Fim": "10:00",
+                                "Data Agendada": datetime.now().date(),
+                                "_saldo_ordem": saldo_restante
                             })
 
                     df_gen = pd.DataFrame(lista_status_frota)
@@ -3158,26 +3163,33 @@ else:
                         df_gen = df_gen.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
                         if 'Gerar OS' not in df_gen.columns: df_gen.insert(0, 'Gerar OS', False)
 
-                        # Trava o checkbox se já houver uma OS aberta (Nº OS diferente de "-")
                         df_gen['Gerar OS'] = df_gen.apply(lambda r: False if str(r['Nº OS']) != "-" else r['Gerar OS'], axis=1)
 
                         with st.form("form_geracao_lote_os"):
                             ed_gen = st.data_editor(
                                 df_gen,
                                 column_config={
-                                    "Gerar OS": st.column_config.CheckboxColumn("Gerar OS", width="small"),
+                                    "Gerar OS": st.column_config.CheckboxColumn("Gerar", width="small"),
                                     "Plano": st.column_config.TextColumn("Plano", width="medium", disabled=True),
                                     "Tipo": st.column_config.TextColumn("Tipo", width="small", disabled=True),
                                     "Nº OS": st.column_config.TextColumn("Nº OS", width="small", disabled=True),
                                     "Veículo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
                                     "Critério": st.column_config.TextColumn("Critério", width="small", disabled=True),
-                                    "Intervalo Padrão": st.column_config.NumberColumn("Intervalo\nPadrão", width="small"),
-                                    "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small", disabled=True),
-                                    "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small", disabled=True),
-                                    "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium", disabled=True),
-                                    "Data da Preventiva": st.column_config.TextColumn("Data\nPreventiva", width="small", disabled=True),
-                                    "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium", disabled=True),
-                                    "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium", disabled=True)
+                                    "Intervalo Padrão": st.column_config.NumberColumn("Intervalo", width="small"),
+                                    "Última Leitura": st.column_config.TextColumn("Últ. Leitura", width="small", disabled=True),
+                                    "Data Ref.": st.column_config.TextColumn("Dt. Ref.", width="small", disabled=True),
+                                    # Colunas reduzidas pela metade (width="small"):
+                                    "Última Preventiva (Leitura)": st.column_config.TextColumn("Últ. Prev.", width="small", disabled=True),
+                                    "Próxima Preventiva": st.column_config.TextColumn("Prox. Prev.", width="small", disabled=True),
+                                    "Saldo Restante": st.column_config.TextColumn("Saldo", width="small", disabled=True),
+                                    # Novos campos interativos operacionais:
+                                    "Área": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"),
+                                    "Executor": st.column_config.TextColumn("Executor", width="small"),
+                                    "Início": st.column_config.TextColumn("Início", width="small"),
+                                    "Fim": st.column_config.TextColumn("Fim", width="small"),
+                                    "Data Agendada": st.column_config.DateColumn("Data", width="small"),
+                                    "Data da Preventiva": None,
+                                    "Data Ref.": None
                                 },
                                 hide_index=True, use_container_width=True, key="editor_geracao_lote"
                             )
@@ -3190,12 +3202,26 @@ else:
                                     for _, r in selecionados_gen.iterrows():
                                         if str(r['Nº OS']) == "-":
                                             v_os = obter_proxima_os(engine, emp_id)
+                                            h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['Veículo'], str(r['Data Agendada']))
+                                            desc_final_os = f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
+                                            
                                             conn.execute(
                                                 text("""
                                                     INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
-                                                    VALUES (:dt, 'A definir', :pr, '08:00', '10:00', :ds, 'Mecânica', :tp, 'Não definido', 'Automático', :eid, :nos, False)
+                                                    VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', 'Automático', :eid, :nos, False)
                                                 """),
-                                                {"dt": str(datetime.now().date()), "pr": str(r['Veículo']), "ds": f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']}", "tp": str(r['Tipo']), "eid": str(emp_id), "nos": v_os}
+                                                {
+                                                    "dt": str(r['Data Agendada']), 
+                                                    "ex": str(r['Executor'] or 'A definir'), 
+                                                    "pr": str(r['Veículo']), 
+                                                    "ti": str(r['Início'] or '08:00'), 
+                                                    "tf": str(r['Fim'] or '10:00'), 
+                                                    "ds": desc_final_os, 
+                                                    "ar": str(r['Área'] or 'Mecânica'), 
+                                                    "tp": str(r['Tipo']), 
+                                                    "eid": str(emp_id), 
+                                                    "nos": v_os
+                                                }
                                             )
                                     conn.commit()
                                 st.cache_data.clear()
