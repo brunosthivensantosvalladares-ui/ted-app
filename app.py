@@ -1858,19 +1858,19 @@ else:
 
         try:
             df_planos_dash = carregar_planos_master_empresa(emp_id)
+            lista_status_frota = []
+            
             if not df_planos_dash.empty:
-                lista_status_frota = []
-                avisos_pendencia_medidor = set()
                 df_medidores_all = carregar_medidores_empresa(emp_id)
                 df_tarefas_all = carregar_tarefas_empresa(emp_id)
                 
                 for _, p in df_planos_dash.iterrows():
                     prefs = [x.strip() for x in str(p['prefixo']).split(",") if x.strip()]
                     crit = p['tipo_criterio']
-                    intervalo_limite = float(p['intervalo_valor'])
+                    intervalo_limite = float(p['intervalo_valor'] or 0)
                     
                     for pref in prefs:
-                        med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()]
+                        med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()] if not df_medidores_all.empty else pd.DataFrame()
                         med_hor_reg, med_odo_reg, data_med_reg = 0.0, 0.0, "-"
                         if not med_veiculo.empty:
                             primeira_med = med_veiculo.iloc[0]
@@ -1878,7 +1878,7 @@ else:
                             med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                             data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                        tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)]
+                        tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)] if not df_tarefas_all.empty else pd.DataFrame()
                         os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
                         
                         if not tarefas_veiculo.empty:
@@ -1892,7 +1892,6 @@ else:
                             except Exception: pass
 
                         tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
-                        if not tem_leitura_sistema and crit in ["Horímetro", "Odômetro"]: avisos_pendencia_medidor.add(pref)
 
                         ultima_leitura_geral = max(med_hor_reg, os_hor_reg) if crit == "Horímetro" else (max(med_odo_reg, os_odo_reg) if crit == "Odômetro" else 0.0)
                         ultima_preventiva_val = os_hor_reg if crit == "Horímetro" else (os_odo_reg if crit == "Odômetro" else 0.0)
@@ -1912,7 +1911,7 @@ else:
                         
                         lista_status_frota.append({
                             "Plano": p['nome_plano'], "Tipo": p['tipo_os'], "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
-                            "Veículo": pref, "Critério": crit, "Intervalo Padrão": intervalo_limite,
+                            "Veículo": pref, "Critério": crit, "Intervalo Padrão": int(intervalo_limite),
                             "Última Leitura": f"{ultima_leitura_geral:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_leitura_geral > 0) else ("-" if crit == "Dias" else "⚠️ Sem Leitura"),
                             "Data Ref.": data_leitura_geral if (crit == "Dias" or ultima_leitura_geral > 0) else "-",
                             "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
@@ -1922,35 +1921,33 @@ else:
                             "Saldo Restante Estimado": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando Leitura"
                         })
 
-                df_status_final = pd.DataFrame(lista_status_frota)
-                if not df_status_final.empty:
-                    df_status_final = df_status_final.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
-                    st.session_state.df_vencimentos_cache = df_status_final
+            df_status_final = pd.DataFrame(lista_status_frota)
+            if not df_status_final.empty:
+                df_status_final = df_status_final.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
+                st.session_state.df_vencimentos_cache = df_status_final
 
-                    st.data_editor(
-                        df_status_final,
-                        column_config={
-                            "Plano": st.column_config.TextColumn("Plano", width="medium"),
-                            "Tipo": st.column_config.TextColumn("Tipo", width="small"),
-                            "Nº OS": st.column_config.TextColumn("Nº OS", width="small"),
-                            "Veículo": st.column_config.TextColumn("Veículo", width="small"),
-                            "Critério": st.column_config.TextColumn("Critério", width="small"),
-                            "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small"),
-                            "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small"),
-                            "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small"),
-                            "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium"),
-                            "Data da Preventiva": st.column_config.TextColumn("Data\nPreventiva", width="small"),
-                            "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium"),
-                            "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium")
-                        },
-                        hide_index=True, use_container_width=True, disabled=True, key="tabela_dashboard_compacta"
-                    )
-                else:
-                    st.info("Nenhum veículo vinculado aos planos cadastrados.")
+                st.data_editor(
+                    df_status_final,
+                    column_config={
+                        "Plano": st.column_config.TextColumn("Plano", width="medium"),
+                        "Tipo": st.column_config.TextColumn("Tipo", width="small"),
+                        "Nº OS": st.column_config.TextColumn("Nº OS", width="small"),
+                        "Veículo": st.column_config.TextColumn("Veículo", width="small"),
+                        "Critério": st.column_config.TextColumn("Critério", width="small"),
+                        "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small"),
+                        "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small"),
+                        "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small"),
+                        "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium"),
+                        "Data da Preventiva": st.column_config.TextColumn("Data\nPreventiva", width="small"),
+                        "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium"),
+                        "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium")
+                    },
+                    hide_index=True, use_container_width=True, disabled=True, key="tabela_dashboard_compacta"
+                )
             else:
-                st.info("Nenhum plano master cadastrado para monitoramento.")
-        except Exception as e:
-            st.info("Cadastre leituras de medidores e planos master para ativar o painel preditivo de vencimentos.")
+                st.info("Nenhum plano master ou veículo vinculado para monitoramento.")
+        except Exception as err:
+            st.error(f"Erro ao carregar o painel preditivo: {err}")
 
     elif "Gestão Master" in aba_ativa and usuario_ativo == "bruno":
         st.subheader("👑 Painel de Controle Master")
@@ -3020,6 +3017,78 @@ else:
             st.markdown("### ⚡ Geração de Ordens de Serviço em Lote via Planos Master")
             st.info("💡 Acompanhe os vencimentos de planos por veículo e marque a coluna **Gerar OS** para processar múltiplos agendamentos de uma só vez.")
 
+            # Garante o carregamento automático caso o cache do Dashboard ainda não tenha sido gerado na sessão
+            if 'df_vencimentos_cache' not in st.session_state or st.session_state.df_vencimentos_cache.empty:
+                try:
+                    df_planos_dash = carregar_planos_master_empresa(emp_id)
+                    lista_status_frota = []
+                    if not df_planos_dash.empty:
+                        df_medidores_all = carregar_medidores_empresa(emp_id)
+                        df_tarefas_all = carregar_tarefas_empresa(emp_id)
+                        
+                        for _, p in df_planos_dash.iterrows():
+                            prefs = [x.strip() for x in str(p['prefixo']).split(",") if x.strip()]
+                            crit = p['tipo_criterio']
+                            intervalo_limite = float(p['intervalo_valor'] or 0)
+                            
+                            for pref in prefs:
+                                med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()] if not df_medidores_all.empty else pd.DataFrame()
+                                med_hor_reg, med_odo_reg, data_med_reg = 0.0, 0.0, "-"
+                                if not med_veiculo.empty:
+                                    primeira_med = med_veiculo.iloc[0]
+                                    med_hor_reg = float(primeira_med.get('horimetro') or 0.0)
+                                    med_odo_reg = float(primeira_med.get('odometro') or 0.0)
+                                    data_med_reg = str(primeira_med.get('data_leitura') or "-")
+
+                                tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)] if not df_tarefas_all.empty else pd.DataFrame()
+                                os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
+                                
+                                if not tarefas_veiculo.empty:
+                                    primeira_tarefa = tarefas_veiculo.iloc[0]
+                                    data_os_reg = str(primeira_tarefa.get('data') or "-")
+                                    numero_os_recente = str(primeira_tarefa.get('numero_os') or "").replace('.0', '')
+                                    desc_os = str(primeira_tarefa.get('descricao') or "")
+                                    try:
+                                        if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
+                                        if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
+                                    except Exception: pass
+
+                                tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
+                                ultima_leitura_geral = max(med_hor_reg, os_hor_reg) if crit == "Horímetro" else (max(med_odo_reg, os_odo_reg) if crit == "Odômetro" else 0.0)
+                                ultima_preventiva_val = os_hor_reg if crit == "Horímetro" else (os_odo_reg if crit == "Odômetro" else 0.0)
+
+                                if crit in ["Horímetro", "Odômetro"] and tem_leitura_sistema and ultima_preventiva_val > 0 and ultima_leitura_geral >= ultima_preventiva_val:
+                                    rodado_desde_ultima = ultima_leitura_geral - ultima_preventiva_val
+                                    saldo_restante = intervalo_limite - (rodado_desde_ultima % intervalo_limite)
+                                    if saldo_restante <= 0: saldo_restante = intervalo_limite
+                                    blocos = int(rodado_desde_ultima // intervalo_limite) + 1
+                                    proxima_preventiva_val = ultima_preventiva_val + (blocos * intervalo_limite)
+                                elif crit in ["Horímetro", "Odômetro"] and tem_leitura_sistema:
+                                    saldo_restante = intervalo_limite - (ultima_leitura_geral % intervalo_limite)
+                                    if saldo_restante == 0: saldo_restante = intervalo_limite
+                                    proxima_preventiva_val = ultima_leitura_geral + saldo_restante
+                                else:
+                                    saldo_restante, proxima_preventiva_val = intervalo_limite, 0.0
+                                
+                                lista_status_frota.append({
+                                    "Plano": p['nome_plano'], "Tipo": p['tipo_os'], "Nº OS": numero_os_recente if numero_os_recente != "" else "-",
+                                    "Veículo": pref, "Critério": crit, "Intervalo Padrão": int(intervalo_limite),
+                                    "Última Leitura": f"{ultima_leitura_geral:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_leitura_geral > 0) else ("-" if crit == "Dias" else "⚠️ Sem Leitura"),
+                                    "Data Ref.": data_leitura_geral if (crit == "Dias" or ultima_leitura_geral > 0) else "-",
+                                    "Última Preventiva (Leitura)": f"{ultima_preventiva_val:,.1f}".replace(",", ".") if (crit != "Dias" and ultima_preventiva_val > 0) else "-",
+                                    "Data da Preventiva": data_os_reg if (crit == "Dias" or ultima_preventiva_val > 0) else "-",
+                                    "Próxima Preventiva": f"{proxima_preventiva_val:,.1f} {'km' if crit=='Odômetro' else 'h'}".replace(",", ".") if (crit != "Dias" and proxima_preventiva_val > 0) else "-",
+                                    "_saldo_ordem": saldo_restante,
+                                    "Saldo Restante Estimado": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando Leitura"
+                                })
+
+                        df_status_final = pd.DataFrame(lista_status_frota)
+                        if not df_status_final.empty:
+                            df_status_final = df_status_final.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
+                            st.session_state.df_vencimentos_cache = df_status_final
+                except Exception:
+                    pass
+
             if 'df_vencimentos_cache' in st.session_state and not st.session_state.df_vencimentos_cache.empty:
                 df_gen = st.session_state.df_vencimentos_cache.copy()
                 if 'Gerar OS' not in df_gen.columns:
@@ -3078,7 +3147,7 @@ else:
                     else:
                         st.warning("⚠️ Marque pelo menos uma caixa 'Gerar OS' na tabela antes de processar.")
             else:
-                st.info("ℹ️ Para utilizar a Geração Automática em lote, acesse a aba **Dashboard** primeiro para carregar o painel de vencimentos da frota.")
+                st.info("ℹ️ Nenhum plano master ou veículo cadastrado para gerar ordens de serviço automáticas.")
                 
     elif "Alimentar Horímetros" in aba_ativa:
         st.subheader("⚡ Alimentação de Horímetros e Odômetros da Frota")
