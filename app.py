@@ -3131,74 +3131,67 @@ if "Dashboard" in aba_ativa:
 
         else:
             st.markdown("### ⚡ Geração de Ordens de Serviço em Lote via Planos Master")
-            st.info("💡 Selecione um plano cadastrado, escolha a data de execução, os horários (opcionais) e os veículos para gerar as OSs.")
+            st.info("💡 Acompanhe os vencimentos de planos por veículo e marque a coluna **Gerar OS** para processar múltiplos agendamentos de uma só vez.")
 
-            df_planos_lote = carregar_planos_master_empresa(emp_id)
-
-            if not df_planos_lote.empty:
-                mapa_p_lote = {f"{row['nome_plano']} ({row['tipo_os']} - Cada {row['intervalo_valor']} {row['tipo_criterio'].lower()})": row['id'] for _, row in df_planos_lote.iterrows()}
-                plano_lote_escolhido = st.selectbox("Selecione o Plano Master", list(mapa_p_lote.keys()), key="sel_plano_lote")
-                id_plano_lote = mapa_p_lote[plano_lote_escolhido]
-                
-                dados_plano_atual = df_planos_lote[df_planos_lote['id'] == id_plano_lote].iloc[0]
-                prefixos_padrao = [p.strip() for p in str(dados_plano_atual['prefixo']).split(",") if p.strip()]
+            if 'df_vencimentos_cache' in st.session_state and not st.session_state.df_vencimentos_cache.empty:
+                df_gen = st.session_state.df_vencimentos_cache.copy()
+                if 'Gerar OS' not in df_gen.columns:
+                    df_gen.insert(0, 'Gerar OS', False)
 
                 with st.form("form_geracao_lote_os"):
-                    dt_lote = st.date_input("Data de Execução Programada", datetime.now(), key="dt_lote_exec")
-                    
-                    c_l1, c_l2 = st.columns(2)
-                    t_ini_lote = c_l1.text_input("Início (Ex: 08:00 - Deixe vazio se preferir)", "", key="lote_t_ini")
-                    t_fim_lote = c_l2.text_input("Fim (Ex: 10:00 - Deixe vazio se preferir)", "", key="lote_t_fim")
-                    
-                    turno_lote = st.selectbox("Turno", LISTA_TURNOS, key="turno_lote_exec")
-                    executor_lote = st.text_input("Executor / Mecânico Padrão", key="exec_lote_exec")
-                    
-                    veiculos_selecionados = st.multiselect(
-                        "Veículos / Equipamentos Alvo para esta OS",
-                        options=prefixos_padrao,
-                        default=prefixos_padrao,
-                        key="multi_veiculos_lote"
+                    ed_gen = st.data_editor(
+                        df_gen,
+                        column_config={
+                            "Gerar OS": st.column_config.CheckboxColumn("Gerar OS", width="small"),
+                            "Plano": st.column_config.TextColumn("Plano", width="medium", disabled=True),
+                            "Tipo": st.column_config.TextColumn("Tipo", width="small", disabled=True),
+                            "Nº OS": st.column_config.TextColumn("Nº OS", width="small", disabled=True),
+                            "Veículo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
+                            "Critério": st.column_config.TextColumn("Critério", width="small", disabled=True),
+                            "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small", disabled=True),
+                            "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small", disabled=True),
+                            "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small", disabled=True),
+                            "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium", disabled=True),
+                            "Data da Preventiva": st.column_config.TextColumn("Data\nPreventiva", width="small", disabled=True),
+                            "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium", disabled=True),
+                            "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium", disabled=True)
+                        },
+                        hide_index=True,
+                        use_container_width=True,
+                        key="editor_geracao_lote"
                     )
                     
-                    if st.form_submit_button("🚀 Gerar OSs para os Veículos Selecionados"):
-                        if veiculos_selecionados:
-                            df_serv_lote = pd.read_sql(text("SELECT descricao_servico FROM servicos_plano WHERE plano_id = :pid"), engine, params={"pid": int(id_plano_lote)})
-                            
-                            if not df_serv_lote.empty:
-                                descricao_unificada = " | ".join(df_serv_lote['descricao_servico'].tolist())
-                                area_plano_lote = dados_plano_atual.get('area', 'Mecânica')
-                                
-                                with engine.connect() as conn:
-                                    contador_gerados = 0
-                                    os_geradas = []
-                                    for pref in veiculos_selecionados:
-                                        nova_os = obter_proxima_os(engine, emp_id)
-                                        h_prox, o_prox = obter_medidor_proximo(engine, emp_id, pref, dt_lote)
-                                        desc_final_os = f"[{dados_plano_atual['nome_plano']}] Servicos: {descricao_unificada} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
-                                        
-                                        conn.execute(
-                                            text("""
-                                                INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, plano_id, origem, empresa_id, numero_os) 
-                                                VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, :tu, :pid, 'Plano Master', :eid, :nos)
-                                            """), 
-                                            {
-                                                "dt": str(dt_lote), "ex": executor_lote, "pr": pref, "ti": t_ini_lote, "tf": t_fim_lote,
-                                                "ds": desc_final_os, "ar": area_plano_lote, "tp": dados_plano_atual['tipo_os'], "tu": turno_lote, 
-                                                "pid": int(id_plano_lote), "eid": str(emp_id), "nos": nova_os
-                                            }
-                                        )
-                                        contador_gerados += 1
-                                        os_geradas.append(str(nova_os))
-                                    conn.commit()
-                                st.cache_data.clear()
-                                st.success(f"✅ {contador_gerados} Ordens de Serviço geradas com sucesso!")
-                                st.info(f"### 📋 ANOTE OS Nº DAS OS GERADAS: **{', '.join(os_geradas)}**")
-                            else:
-                                st.warning("⚠️ Este plano master não possui serviços cadastrados para gerar a OS.")
-                        else:
-                            st.warning("Selecione pelo menos um veículo.")
+                    btn_gerar_lote = st.form_submit_button("🚀 Gerar OSs Selecionadas em Lote", type="primary", use_container_width=True)
+
+                if btn_gerar_lote:
+                    selecionados_gen = ed_gen[ed_gen['Gerar OS'] == True]
+                    if not selecionados_gen.empty:
+                        with engine.connect() as conn:
+                            for _, r in selecionados_gen.iterrows():
+                                v_os = obter_proxima_os(engine, emp_id)
+                                conn.execute(
+                                    text("""
+                                        INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
+                                        VALUES (:dt, 'A definir', :pr, '08:00', '10:00', :ds, 'Mecânica', :tp, 'Não definido', 'Automático', :eid, :nos, False)
+                                    """),
+                                    {
+                                        "dt": str(datetime.now().date()),
+                                        "pr": str(r['Veículo']),
+                                        "ds": f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']}",
+                                        "tp": str(r['Tipo']),
+                                        "eid": str(emp_id),
+                                        "nos": v_os
+                                    }
+                                )
+                            conn.commit()
+                        st.cache_data.clear()
+                        st.success("✅ Ordens de Serviço selecionadas geradas com sucesso e enviadas à Agenda Principal!")
+                        time_module.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ Marque pelo menos uma caixa 'Gerar OS' na tabela antes de processar.")
             else:
-                st.info("Nenhum plano master cadastrado para geração em lote.")
+                st.info("ℹ️ Para utilizar a Geração Automática em lote, acesse a aba **Dashboard** primeiro para carregar o painel de vencimentos da frota.")
                 
     elif "Alimentar Horímetros" in aba_ativa:
         st.subheader("⚡ Alimentação de Horímetros e Odômetros da Frota")
