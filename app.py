@@ -3204,20 +3204,37 @@ else:
             
         with c_refresh:
             if st.button("🔄 Atualizar Lista", use_container_width=True, key="btn_refresh_chamados"):
+                if 'df_ap_work' in st.session_state: 
+                    del st.session_state.df_ap_work
                 st.rerun()
 
         with st.popover("💡 Como usar os Chamados?"):
             st.markdown("""
                 ### 📥 Guia Rápido - Chamados
                 1. **Triagem:** Veja o que os motoristas relataram. 
-                2. **Configuração:** Selecione o chamado, ajuste a Área, Tipo de OS, Executor e horários (digite apenas números, ex: `800`).
-                3. **Finalizar:** Clique em **Aprovar e Enviar para a Agenda**.
+                2. **Configuração:** Ajuste os campos diretamente na tabela (digite os horários apenas com números, ex: `800` ou `0800`).
+                3. **Finalizar:** Marque a coluna **OK** nos chamados desejados e clique no botão **💾 Salvar e Processar Agendamentos em Lote** na parte inferior.
             """)
             
         df_p = pd.read_sql(text("SELECT id, data_solicitacao, motorista, prefixo, descricao FROM chamados WHERE status = 'Pendente' AND empresa_id = :eid ORDER BY id DESC"), engine, params={"eid": str(emp_id)})
         
         if not df_p.empty:
-            # Busca lista de executores cadastrados para a lista suspensa
+            if 'df_ap_work' not in st.session_state:
+                df_p['Aprovar'] = False
+                df_p['prefixo'] = df_p['prefixo'].astype(str)
+                df_p['descricao'] = df_p['descricao'].astype(str)
+                df_p['motorista'] = df_p['motorista'].astype(str)
+                df_p['Tipo_OS'] = "Corretiva"
+                df_p['Executor'] = ""
+                df_p['Area_Destino'] = "Mecânica"
+                df_p['Data_Programada'] = datetime.now().date()
+                df_p['Inicio'] = "08:00"
+                df_p['Fim'] = "10:00"
+                
+                colunas_ordenadas = ['Aprovar', 'prefixo', 'descricao', 'motorista', 'Tipo_OS', 'Area_Destino', 'Executor', 'Data_Programada', 'Inicio', 'Fim', 'data_solicitacao', 'id']
+                st.session_state.df_ap_work = df_p[colunas_ordenadas]
+
+            # Busca lista de executores cadastrados anteriormente para a lista suspensa
             executores_cadastrados = [""]
             try:
                 df_exec_ant = pd.read_sql(text("SELECT DISTINCT executor FROM tarefas WHERE empresa_id = :eid AND executor IS NOT NULL AND executor != '' ORDER BY executor ASC"), engine, params={"eid": str(emp_id)})
@@ -3237,51 +3254,64 @@ else:
                     return f"{v.zfill(2)}:00"
                 return str(val) if val and ":" in str(val) else "08:00"
 
-            # Exibe cada chamado pendente em um card com formulário isolado (sem salvamento automático)
-            for _, r in df_p.iterrows():
-                cid = r['id']
-                with st.container(border=True):
-                    st.markdown(f"**Veículo:** `{r['prefixo']}` | **Solicitante:** {r['motorista']} ({r['data_solicitacao']})")
-                    st.markdown(f"**Descrição:** {r['descricao']}")
+            # Envolvemos a tabela e o botão em um form para impedir qualquer salvamento automático
+            with st.form("form_lote_chamados"):
+                ed_c = st.data_editor(
+                    st.session_state.df_ap_work, 
+                    hide_index=True, 
+                    use_container_width=True, 
+                    column_config={
+                        "Aprovar": st.column_config.CheckboxColumn("OK", width="small"), 
+                        "prefixo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
+                        "descricao": st.column_config.TextColumn("Descrição", width="small", disabled=True),
+                        "motorista": st.column_config.TextColumn("Solicitante", width="small", disabled=True),
+                        "Tipo_OS": st.column_config.SelectboxColumn("Tipo", options=LISTA_TIPOS_OS, width="small"),
+                        "Area_Destino": st.column_config.SelectboxColumn("Área", options=ORDEM_AREAS, width="small"), 
+                        "Executor": st.column_config.SelectboxColumn("Executor", options=executores_cadastrados, width="small"),
+                        "Data_Programada": st.column_config.DateColumn("Data", width="small"), 
+                        "Inicio": st.column_config.TextColumn("Início", width="small"),
+                        "Fim": st.column_config.TextColumn("Fim", width="small"),
+                        "data_solicitacao": None, 
+                        "id": None
+                    }, 
+                    key="editor_chamados_lote"
+                )
+                
+                btn_processar = st.form_submit_button("💾 Salvar e Processar Agendamentos em Lote", type="primary", use_container_width=True)
+
+            if btn_processar:
+                selecionados = ed_c[ed_c['Aprovar'] == True]
+                
+                if not selecionados.empty:
+                    with engine.connect() as conn:
+                        for _, r in selecionados.iterrows():
+                            v_os = obter_proxima_os(engine, emp_id)
+                            h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], r['Data_Programada'])
+                            desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
+                            
+                            t_inicio = formatar_hora_simples(r['Inicio'])
+                            t_fim = formatar_hora_simples(r['Fim'])
+
+                            conn.execute(
+                                text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, id_chamado, origem, empresa_id, numero_os) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', :ic, 'Chamado', :eid, :nos)"), 
+                                {
+                                    "dt": str(r['Data_Programada']), "ex": str(r['Executor']), "pr": str(r['prefixo']), 
+                                    "ti": t_inicio, "tf": t_fim, "ds": desc_com_med, "ar": str(r['Area_Destino']), 
+                                    "tp": str(r['Tipo_OS']), "ic": int(r['id']), "eid": str(emp_id), "nos": v_os
+                                }
+                            )
+                            conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id AND empresa_id = :eid"), {"id": int(r['id']), "eid": str(emp_id)})
+                        conn.commit()
                     
-                    with st.form(f"form_aprovar_{cid}__"):
-                        c1, c2, c3 = st.columns(3)
-                        tipo_os = c1.selectbox("Tipo de OS", LISTA_TIPOS_OS, key=f"t_{cid}")
-                        area_dest = c2.selectbox("Área", ORDEM_AREAS, key=f"a_{cid}")
-                        executor = c3.selectbox("Executor", executores_cadastrados, key=f"ex_{cid}")
-
-                        c4, c5, c6 = st.columns(3)
-                        data_prog = c4.date_input("Data Programada", datetime.now(), key=f"d_{cid}")
-                        inicio = c5.text_input("Início (ex: 800)", "08:00", key=f"i_{cid}")
-                        fim = c6.text_input("Fim (ex: 1000)", "10:00", key=f"f_{cid}")
-
-                        if st.form_submit_button("🚀 Aprovar e Enviar para a Agenda", type="primary", use_container_width=True):
-                            try:
-                                v_os = obter_proxima_os(engine, emp_id)
-                                h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], str(data_prog))
-                                desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
-                                
-                                t_inicio = formatar_hora_simples(inicio)
-                                t_fim = formatar_hora_simples(fim)
-
-                                with engine.connect() as conn:
-                                    conn.execute(
-                                        text("INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, id_chamado, origem, empresa_id, numero_os) VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', :ic, 'Chamado', :eid, :nos)"), 
-                                        {
-                                            "dt": str(data_prog), "ex": str(executor), "pr": str(r['prefixo']), 
-                                            "ti": t_inicio, "tf": t_fim, "ds": desc_com_med, "ar": str(area_dest), 
-                                            "tp": str(tipo_os), "ic": int(cid), "eid": str(emp_id), "nos": v_os
-                                        }
-                                    )
-                                    conn.execute(text("UPDATE chamados SET status = 'Agendado' WHERE id = :id AND empresa_id = :eid"), {"id": int(cid), "eid": str(emp_id)})
-                                    conn.commit()
-                                
-                                st.cache_data.clear()
-                                st.success(f"✅ Chamado do veículo {r['prefixo']} aprovado com sucesso!")
-                                time_module.sleep(0.5)
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao processar: {e}")
+                    if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
+                    if 'analises_halley' in st.session_state: del st.session_state.analises_halley
+                        
+                    st.cache_data.clear()
+                    st.success("✅ Todos os agendamentos selecionados foram processados e enviados à Agenda Principal!")
+                    time_module.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Marque a caixa 'OK' em ao menos um chamado antes de processar.")
         else: 
             st.info("Nenhum chamado pendente no momento.")
             
