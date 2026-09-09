@@ -1605,6 +1605,7 @@ else:
                 flex-shrink: 0;
                 transition: all 0.2s ease;
                 user-select: none;
+                -webkit-tap-highlight-color: transparent;
             }}
             .arrow-btn:hover {{
                 background-color: #C5A059;
@@ -1636,6 +1637,7 @@ else:
                 box-sizing: border-box;
                 cursor: pointer;
                 transition: all 0.2s ease;
+                -webkit-tap-highlight-color: transparent;
             }}
             .card:hover {{
                 border: 1.2px solid #C5A059;
@@ -1681,6 +1683,19 @@ else:
                 -webkit-box-orient: vertical;
                 overflow: hidden;
             }}
+            
+            /* Ajustes responsivos para telas de celular (evita cortes e travamentos de toque) */
+            @media (max-width: 768px) {{
+                .card {{
+                    flex: 0 0 calc((100% - 10px) / 2);
+                }}
+                .card-title {{
+                    font-size: 0.78rem;
+                }}
+                .card-sub {{
+                    font-size: 0.65rem;
+                }}
+            }}
         </style>
 
         <div class="carousel-wrapper">
@@ -1696,7 +1711,9 @@ else:
             const track = document.getElementById('track');
             const btnPrev = document.getElementById('btnPrev');
             const btnNext = document.getElementById('btnNext');
-            const visibleCount = 3;
+            
+            // Ajusta o número de cartões visíveis dinamicamente dependendo da largura da tela
+            let visibleCount = window.innerWidth <= 768 ? Math.min(2, cardsData.length) : 3;
             let currentIndex = 0;
             let intervalTimer = null;
 
@@ -1777,10 +1794,9 @@ else:
         """,
         height=66
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
     aba_ativa = st.session_state.opcao_selecionada
-
+    
     if "Dashboard" in aba_ativa:
         st.markdown("<h4 style='color: #2D241E; font-weight: 700; margin-bottom: 16px;'>Cronograma Geral de Manutenção</h4>", unsafe_allow_html=True)
         
@@ -2561,7 +2577,7 @@ else:
 
         st.divider()
         
-        # Observações unificadas em uma única caixa azul elegante
+        # Caixa única unificada em azul destacada
         st.info("✍️ **Logística:** Preencha **Início** ou **Fim**. **PCM:** Defina **Área** ou **Executor**. \n💡 **Dica de Horários:** Digite apenas os números (ex: 800, Salva como 08:00).")
         
         df_a = carregar_tarefas_empresa(emp_id)
@@ -2605,7 +2621,6 @@ else:
             with c_pdf: st.download_button("📥 PDF", gerar_pdf_periodo(df_f, p_sel[0], p_sel[1]), f"Relatorio_U2T_{p_sel[0]}.pdf")
             with c_xls: st.download_button("📊 Excel", to_excel_native(df_f), f"Relatorio_U2T_{p_sel[0]}.xlsx")
             
-            # Envolvemos a exibição da agenda em um formulário para salvamento estritamente manual por botão
             with st.form("form_agenda_principal_lote"):
                 edits_por_secao = {}
                 
@@ -2669,9 +2684,10 @@ else:
                                 except Exception: 
                                     pass
                     conn.commit()
+                # Força a limpeza do cache e recarregamento imediato para refletir os horários formatados na tela
                 st.cache_data.clear()
                 st.success("✅ Alterações salvas com sucesso na Agenda Principal!")
-                time_module.sleep(0.5)
+                time_module.sleep(0.3)
                 st.rerun()
 
     elif "Cadastro Direto" in aba_ativa:
