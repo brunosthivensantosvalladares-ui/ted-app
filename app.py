@@ -1797,7 +1797,11 @@ else:
 
     aba_ativa = st.session_state.opcao_selecionada
     
-    if "Dashboard" in aba_ativa:
+    # Garante que o Mr. Halley não abre sozinho ao trocar de abas
+if "mr_halley_aberto" not in st.session_state:
+    st.session_state.mr_halley_aberto = False
+
+if "Dashboard" in aba_ativa:
         st.markdown("<h4 style='color: #2D241E; font-weight: 700; margin-bottom: 16px;'>Cronograma Geral de Manutenção</h4>", unsafe_allow_html=True)
         
         df_dash_stats = carregar_tarefas_empresa(emp_id)
@@ -1882,7 +1886,6 @@ else:
                 lista_status_frota = []
                 avisos_pendencia_medidor = set()
                 
-                # Carrega lotes de dados cacheados para máxima performance
                 df_medidores_all = carregar_medidores_empresa(emp_id)
                 df_tarefas_all = carregar_tarefas_empresa(emp_id)
                 
@@ -1892,7 +1895,6 @@ else:
                     intervalo_limite = float(p['intervalo_valor'])
                     
                     for pref in prefs:
-                        # 1. Filtra a última leitura avulsa de medidor para este veículo
                         med_veiculo = df_medidores_all[df_medidores_all['prefixo'].astype(str).str.lower() == str(pref).lower()]
                         med_hor_reg = 0.0
                         med_odo_reg = 0.0
@@ -1903,7 +1905,6 @@ else:
                             med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                             data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                        # 2. Filtra a última OS concluída para este veículo
                         tarefas_veiculo = df_tarefas_all[
                             (df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & 
                             (df_tarefas_all['realizado'] == True)
@@ -1929,10 +1930,8 @@ else:
                             except Exception:
                                 pass
 
-                        # Fallback inteligente por proximidade de data caso a OS não tenha gravado medidor no texto
                         if data_os_reg != "-" and ((crit == "Horímetro" and os_hor_reg == 0.0) or (crit == "Odômetro" and os_odo_reg == 0.0)):
                             if not med_veiculo.empty:
-                                # Converte data da OS para datetime para comparar diferença de dias com o DataFrame de medidores
                                 dt_os_dt = pd.to_datetime(data_os_reg, errors='coerce')
                                 if pd.notnull(dt_os_dt):
                                     med_veiculo_copy = med_veiculo.copy()
@@ -1946,7 +1945,6 @@ else:
                                         elif crit == "Odômetro":
                                             os_odo_reg = float(closest.get('odometro') or 0.0)
 
-                        # Validação de existência de dados para critérios baseados em medidor
                         tem_leitura_sistema = False
                         if crit == "Dias":
                             tem_leitura_sistema = True
@@ -1960,7 +1958,6 @@ else:
                         if not tem_leitura_sistema and crit in ["Horímetro", "Odômetro"]:
                             avisos_pendencia_medidor.add(pref)
 
-                        # 3. Determina a "Última Leitura Geral"
                         if crit == "Horímetro":
                             if med_hor_reg >= os_hor_reg:
                                 ultima_leitura_geral = med_hor_reg
@@ -1979,7 +1976,6 @@ else:
                             ultima_leitura_geral = 0.0
                             data_leitura_geral = data_med_reg if data_med_reg != "-" else data_os_reg
 
-                        # 4. Dados específicos da Última Preventiva
                         if crit == "Horímetro":
                             ultima_preventiva_val = os_hor_reg
                         elif crit == "Odômetro":
@@ -1987,7 +1983,6 @@ else:
                         else:
                             ultima_preventiva_val = 0.0
 
-                        # 5. Cálculo correto do saldo restante e da Próxima Preventiva (Meta)
                         atual_val = ultima_leitura_geral
                         if crit in ["Horímetro", "Odômetro"]:
                             if not tem_leitura_sistema:
@@ -2025,7 +2020,6 @@ else:
                             "Saldo Restante Estimado": f"{saldo_restante:,.1f} {'km' if crit=='Odômetro' else 'h' if crit=='Horímetro' else 'dias'}".replace(",", ".") if (crit == "Dias" or tem_leitura_sistema) else "Aguardando Leitura"
                         })
 
-                # Exibe aviso customizado orientado por diretrizes de telemetria
                 if avisos_pendencia_medidor:
                     veiculos_str = ", ".join(sorted(avisos_pendencia_medidor))
                     st.warning(
@@ -2038,7 +2032,32 @@ else:
                 df_status_final = pd.DataFrame(lista_status_frota)
                 if not df_status_final.empty:
                     df_status_final = df_status_final.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
-                    st.dataframe(df_status_final, use_container_width=True, hide_index=True)
+                    
+                    # Salva no session_state para reutilizar na aba de Geração Automática se necessário
+                    st.session_state.df_vencimentos_cache = df_status_final
+
+                    # Tabela otimizada com colunas compactas e títulos quebrados para caber perfeitamente na tela
+                    st.data_editor(
+                        df_status_final,
+                        column_config={
+                            "Plano": st.column_config.TextColumn("Plano", width="medium"),
+                            "Tipo": st.column_config.TextColumn("Tipo", width="small"),
+                            "Nº OS": st.column_config.TextColumn("Nº OS", width="small"),
+                            "Veículo": st.column_config.TextColumn("Veículo", width="small"),
+                            "Critério": st.column_config.TextColumn("Critério", width="small"),
+                            "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small"),
+                            "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small"),
+                            "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small"),
+                            "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium"),
+                            "Data da Preventiva": st.column_config.TextColumn("Data\nPreventiva", width="small"),
+                            "Próxima Preventiva": st.column_config.TextColumn("Próxima\nPreventiva", width="medium"),
+                            "Saldo Restante Estimado": st.column_config.TextColumn("Saldo\nRestante", width="medium")
+                        },
+                        hide_index=True,
+                        use_container_width=True,
+                        disabled=True,
+                        key="tabela_dashboard_compacta"
+                    )
                 else:
                     st.info("Nenhum veículo vinculado aos planos cadastrados.")
             else:
