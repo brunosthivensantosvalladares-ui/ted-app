@@ -1956,7 +1956,7 @@ else:
                             "Nº OS": st.column_config.TextColumn("Nº OS", width="small"),
                             "Veículo": st.column_config.TextColumn("Veículo", width="small"),
                             "Critério": st.column_config.TextColumn("Critério", width="small"),
-                            "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small"),
+                            "Intervalo Padrão": st.column_config.NumberColumn("Intervalo\nPadrão", width="small"),
                             "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small"),
                             "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small"),
                             "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium"),
@@ -3039,7 +3039,17 @@ else:
 
         else:
             st.markdown("### ⚡ Geração Automática de Ordens de Serviço em Lote")
-            st.info("💡 Acompanhe os vencimentos de planos por veículo e marque a coluna **Gerar OS** para processar múltiplos agendamentos de uma só vez.")
+            st.info("💡 Acompanhe os vencimentos de planos por veículo. Enquanto houver uma OS em aberto, o número aparecerá em **verde e negrito** e a seleção ficará travada.")
+
+            # Injeta o estilo visual para deixar o número da OS pendente em verde e negrito na tabela
+            st.markdown("""
+                <style>
+                    div[data-testid="stDataEditor"] td:has(span) {
+                        color: #2E7D32 !important;
+                        font-weight: bold !important;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
 
             try:
                 df_planos_dash = carregar_planos_master_empresa(emp_id)
@@ -3062,18 +3072,24 @@ else:
                                 med_odo_reg = float(primeira_med.get('odometro') or 0.0)
                                 data_med_reg = str(primeira_med.get('data_leitura') or "-")
 
-                            tarefas_veiculo = df_tarefas_all[(df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()) & (df_tarefas_all['realizado'] == True)] if not df_tarefas_all.empty else pd.DataFrame()
+                            # Busca tarefas para verificar se há OS aberta ou concluída recente
+                            tarefas_veiculo = df_tarefas_all[df_tarefas_all['prefixo'].astype(str).str.lower() == str(pref).lower()] if not df_tarefas_all.empty else pd.DataFrame()
                             os_hor_reg, os_odo_reg, data_os_reg, numero_os_recente = 0.0, 0.0, "-", "-"
                             
                             if not tarefas_veiculo.empty:
-                                primeira_tarefa = tarefas_veiculo.iloc[0]
-                                data_os_reg = str(primeira_tarefa.get('data') or "-")
-                                numero_os_recente = str(primeira_tarefa.get('numero_os') or "").replace('.0', '')
-                                desc_os = str(primeira_tarefa.get('descricao') or "")
-                                try:
-                                    if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
-                                    if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
-                                except Exception: pass
+                                pendente_veiculo = tarefas_veiculo[tarefas_veiculo['realizado'] == False]
+                                if not pendente_veiculo.empty:
+                                    numero_os_recente = str(pendente_veiculo.iloc[0].get('numero_os') or "").replace('.0', '')
+                                else:
+                                    primeira_tarefa = tarefas_veiculo[tarefas_veiculo['realizado'] == True]
+                                    if not primeira_tarefa.empty:
+                                        numero_os_recente = str(primeira_tarefa.iloc[0].get('numero_os') or "").replace('.0', '')
+                                        data_os_reg = str(primeira_tarefa.iloc[0].get('data') or "-")
+                                        desc_os = str(primeira_tarefa.iloc[0].get('descricao') or "")
+                                        try:
+                                            if "Horímetro:" in desc_os: os_hor_reg = float(desc_os.split("Horímetro:")[1].split("h")[0].strip())
+                                            if "Odômetro:" in desc_os: os_odo_reg = float(desc_os.split("Odômetro:")[1].split("km")[0].strip())
+                                        except Exception: pass
 
                             tem_leitura_sistema = True if crit == "Dias" or med_hor_reg > 0 or os_hor_reg > 0 or med_odo_reg > 0 or os_odo_reg > 0 else False
 
@@ -3127,6 +3143,9 @@ else:
                         df_gen = df_gen.sort_values(by="_saldo_ordem", ascending=True).drop(columns=["_saldo_ordem"])
                         if 'Gerar OS' not in df_gen.columns: df_gen.insert(0, 'Gerar OS', False)
 
+                        # Trava o checkbox se já houver uma OS aberta (Nº OS diferente de "-")
+                        df_gen['Gerar OS'] = df_gen.apply(lambda r: False if str(r['Nº OS']) != "-" else r['Gerar OS'], axis=1)
+
                         with st.form("form_geracao_lote_os"):
                             ed_gen = st.data_editor(
                                 df_gen,
@@ -3137,7 +3156,7 @@ else:
                                     "Nº OS": st.column_config.TextColumn("Nº OS", width="small", disabled=True),
                                     "Veículo": st.column_config.TextColumn("Veículo", width="small", disabled=True),
                                     "Critério": st.column_config.TextColumn("Critério", width="small", disabled=True),
-                                    "Intervalo Padrão": st.column_config.TextColumn("Intervalo\nPadrão", width="small", disabled=True),
+                                    "Intervalo Padrão": st.column_config.NumberColumn("Intervalo\nPadrão", width="small"),
                                     "Última Leitura": st.column_config.TextColumn("Última\nLeitura", width="small", disabled=True),
                                     "Data Ref.": st.column_config.TextColumn("Data\nRef.", width="small", disabled=True),
                                     "Última Preventiva (Leitura)": st.column_config.TextColumn("Última\nPreventiva\n(Leitura)", width="medium", disabled=True),
@@ -3154,20 +3173,21 @@ else:
                             if not selecionados_gen.empty:
                                 with engine.connect() as conn:
                                     for _, r in selecionados_gen.iterrows():
-                                        v_os = obter_proxima_os(engine, emp_id)
-                                        conn.execute(
-                                            text("""
-                                                INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
-                                                VALUES (:dt, 'A definir', :pr, '08:00', '10:00', :ds, 'Mecânica', :tp, 'Não definido', 'Automático', :eid, :nos, False)
-                                            """),
-                                            {"dt": str(datetime.now().date()), "pr": str(r['Veículo']), "ds": f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']}", "tp": str(r['Tipo']), "eid": str(emp_id), "nos": v_os}
-                                        )
+                                        if str(r['Nº OS']) == "-":
+                                            v_os = obter_proxima_os(engine, emp_id)
+                                            conn.execute(
+                                                text("""
+                                                    INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, origem, empresa_id, numero_os, realizado) 
+                                                    VALUES (:dt, 'A definir', :pr, '08:00', '10:00', :ds, 'Mecânica', :tp, 'Não definido', 'Automático', :eid, :nos, False)
+                                                """),
+                                                {"dt": str(datetime.now().date()), "pr": str(r['Veículo']), "ds": f"Plano Preventivo: {r['Plano']} | Critério: {r['Critério']}", "tp": str(r['Tipo']), "eid": str(emp_id), "nos": v_os}
+                                            )
                                     conn.commit()
                                 st.cache_data.clear()
                                 st.success("✅ Ordens de Serviço selecionadas geradas com sucesso e enviadas à Agenda Principal!")
                                 time_module.sleep(0.5)
                                 st.rerun()
-                            else: st.warning("⚠️ Marque pelo menos uma caixa 'Gerar OS' na tabela.")
+                            else: st.warning("⚠️ Marque pelo menos uma linha válida sem OS em aberto.")
                     else:
                         st.info("Nenhum veículo vinculado aos planos cadastrados.")
                 else:
