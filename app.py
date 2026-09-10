@@ -3513,63 +3513,64 @@ else:
                 selecionados = ed_c[ed_c['Aprovar'] == True]
                 
                 if not selecionados.empty:
-                    try:
-                        with engine.connect() as conn:
-                            # Prepara as listas para execução em lote no banco
-                            tarefas_para_inserir = []
-                            ids_chamados_concluir = []
-                            
-                            for _, r in selecionados.iterrows():
-                                v_os = obter_proxima_os(engine, emp_id)
-                                h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], r['Data_Programada'])
-                                desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
+                    # Exibe feedback visual imediato na tela para o usuário saber que está processando
+                    with st.spinner("⏳ Processando lote de chamados e salvando na Agenda Principal... Por favor, aguarde."):
+                        try:
+                            with engine.connect() as conn:
+                                tarefas_para_inserir = []
+                                ids_chamados_concluir = []
                                 
-                                t_inicio = formatar_hora_simples(r['Inicio'])
-                                t_fim = formatar_hora_simples(r['Fim'])
+                                for _, r in selecionados.iterrows():
+                                    v_os = obter_proxima_os(engine, emp_id)
+                                    h_prox, o_prox = obter_medidor_proximo(engine, emp_id, r['prefixo'], r['Data_Programada'])
+                                    desc_com_med = f"{r['descricao']} | [Leitura Ref: Horímetro {h_prox}h, Odômetro {o_prox}km]"
+                                    
+                                    t_inicio = formatar_hora_simples(r['Inicio'])
+                                    t_fim = formatar_hora_simples(r['Fim'])
 
-                                tarefas_para_inserir.append({
-                                    "dt": str(r['Data_Programada']), 
-                                    "ex": str(r['Executor']), 
-                                    "pr": str(r['prefixo']), 
-                                    "ti": t_inicio, 
-                                    "tf": t_fim, 
-                                    "ds": desc_com_med, 
-                                    "ar": str(r['Area_Destino']), 
-                                    "tp": str(r['Tipo_OS']), 
-                                    "ic": int(r['id']), 
-                                    "eid": str(emp_id), 
-                                    "nos": v_os
-                                })
-                                ids_chamados_concluir.append(int(r['id']))
+                                    tarefas_para_inserir.append({
+                                        "dt": str(r['Data_Programada']), 
+                                        "ex": str(r['Executor']), 
+                                        "pr": str(r['prefixo']), 
+                                        "ti": t_inicio, 
+                                        "tf": t_fim, 
+                                        "ds": desc_com_med, 
+                                        "ar": str(r['Area_Destino']), 
+                                        "tp": str(r['Tipo_OS']), 
+                                        "ic": int(r['id']), 
+                                        "eid": str(emp_id), 
+                                        "nos": v_os
+                                    })
+                                    ids_chamados_concluir.append(int(r['id']))
 
-                            # Execução em lote (Bulk Insert) extremamente rápida
-                            if tarefas_para_inserir:
-                                conn.execute(
-                                    text("""
-                                        INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, id_chamado, origem, empresa_id, numero_os) 
-                                        VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', :ic, 'Chamado', :eid, :nos)
-                                    """), 
-                                    tarefas_para_inserir
-                                )
-                            
-                            # Atualiza os chamados em lote
-                            if ids_chamados_concluir:
-                                conn.execute(
-                                    text("UPDATE chamados SET status = 'Agendado' WHERE id = ANY(:ids) AND empresa_id = :eid"),
-                                    {"ids": ids_chamados_concluir, "eid": str(emp_id)}
-                                )
+                                # Bulk Insert otimizado no PostgreSQL
+                                if tarefas_para_inserir:
+                                    conn.execute(
+                                        text("""
+                                            INSERT INTO tarefas (data, executor, prefixo, inicio_disp, fim_disp, descricao, area, tipo_os, turno, id_chamado, origem, empresa_id, numero_os) 
+                                            VALUES (:dt, :ex, :pr, :ti, :tf, :ds, :ar, :tp, 'Não definido', :ic, 'Chamado', :eid, :nos)
+                                        """), 
+                                        tarefas_para_inserir
+                                    )
                                 
-                            conn.commit()
-                        
-                        if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
-                        if 'analises_halley' in st.session_state: del st.session_state.analises_halley
+                                # Atualiza status dos chamados em lote
+                                if ids_chamados_concluir:
+                                    conn.execute(
+                                        text("UPDATE chamados SET status = 'Agendado' WHERE id = ANY(:ids) AND empresa_id = :eid"),
+                                        {"ids": ids_chamados_concluir, "eid": str(emp_id)}
+                                    )
+                                    
+                                conn.commit()
                             
-                        st.cache_data.clear()
-                        st.success("✅ Todos os chamados selecionados foram processados instantaneamente!")
-                        time_module.sleep(0.3)
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Erro ao processar lote: {e}")
+                            if 'df_ap_work' in st.session_state: del st.session_state.df_ap_work
+                            if 'analises_halley' in st.session_state: del st.session_state.analises_halley
+                                
+                            st.cache_data.clear()
+                            st.success("✅ Todos os chamados selecionados foram processados com sucesso!")
+                            time_module.sleep(0.3)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao processar lote: {e}")
                 else:
                     st.warning("⚠️ Marque a caixa 'OK' em ao menos um chamado antes de processar.")
         else: 
